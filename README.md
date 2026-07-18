@@ -5,8 +5,12 @@ your friends to a bingo — live over the internet.
 
 - **Classic 75-ball bingo.** Each player gets a 5×5 card (B/I/N/G/O columns with
   a free centre square).
-- **Live calling.** Once the host starts, the server draws a new number on a
-  timer and pushes it to every player instantly over Server-Sent Events.
+- **Take turns calling.** Once the host starts, players take turns picking which
+  number to call. Every call plays for everyone and is pushed instantly over
+  Server-Sent Events, then the turn passes to the next player.
+- **Spell out BINGO.** The default win mode is to complete five lines — one for
+  each letter of B-I-N-G-O. You can also play for any single line or a full
+  blackout.
 - **Race to win.** Cards auto-daub called numbers. The first player to complete
   the winning pattern and hit **BINGO!** wins — the server is the sole judge, so
   premature claims are rejected.
@@ -50,7 +54,8 @@ The game engine lives entirely in `server/bingo.js`:
 - `POST /api/bingo/rooms` — create a room and become its host.
 - `POST /api/bingo/rooms/:code/join` — join a room's lobby.
 - `GET  /api/bingo/rooms/:code/events` — the live Server-Sent Events stream.
-- `POST /api/bingo/rooms/:code/start` — host starts the game.
+- `POST /api/bingo/rooms/:code/start` — host starts the game (turn passes to the host first).
+- `POST /api/bingo/rooms/:code/call` — on your turn, call a number for everyone.
 - `POST /api/bingo/rooms/:code/claim` — claim a bingo (server-validated).
 - `POST /api/bingo/rooms/:code/restart` — host resets to the lobby with fresh cards.
 - `POST /api/bingo/rooms/:code/leave` — leave (the host role is handed off if needed).
@@ -62,8 +67,7 @@ persisted in `localStorage`, so a page reload rejoins the same seat and card.
 
 | Setting        | Where                     | Notes                                   |
 | -------------- | ------------------------- | --------------------------------------- |
-| Win pattern    | Room creation             | Any line (row/column/diagonal) or blackout. |
-| Calling pace   | Room creation             | Relaxed (5s), Normal (3.5s), or Fast (2s). |
+| Win pattern    | Room creation             | BINGO — five lines (default), any single line, or blackout. |
 | `PORT`         | Environment variable      | Server port; defaults to `3000`.        |
 
 ## License

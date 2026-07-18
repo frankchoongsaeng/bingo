@@ -8,7 +8,13 @@ import { cn } from "@/utils";
 import { BingoCard } from "./BingoCard";
 import { JoinInline } from "./JoinInline";
 import { useBingoRoom } from "./useBingoRoom";
-import { letterFor } from "./types";
+import {
+  BINGO_LETTERS,
+  completedLineCount,
+  hasCompletableWin,
+  letterFor,
+  type RoomState,
+} from "./types";
 
 export function BingoRoomView({ code, onLeave }: { code: string; onLeave: () => void }) {
   const bingo = useBingoRoom(code);
@@ -32,6 +38,7 @@ export function BingoRoomView({ code, onLeave }: { code: string; onLeave: () => 
   const someoneWon = room.phase === "finished" && !!room.winnerId;
   const iWon = room.winnerId === self.id;
   const iHaveWin = room.phase === "playing" && hasCompletableWin(self.card, calledSet, room.winPattern);
+  const isMyTurn = room.phase === "playing" && room.turnPlayerId === self.id;
 
   return (
     <div className="mx-auto w-full max-w-5xl px-4 py-6 sm:py-10">
@@ -50,7 +57,7 @@ export function BingoRoomView({ code, onLeave }: { code: string; onLeave: () => 
 
           {room.phase !== "lobby" && (
             <div className="space-y-6">
-              <CallPanel room={room} />
+              <CallPanel room={room} isMyTurn={isMyTurn} selfId={self.id} />
 
               {someoneWon && (
                 <WinnerBanner
@@ -61,7 +68,18 @@ export function BingoRoomView({ code, onLeave }: { code: string; onLeave: () => 
                 />
               )}
 
+              {room.phase === "playing" && isMyTurn && (
+                <NumberPicker calledSet={calledSet} onPick={bingo.call} />
+              )}
+
               <div className="space-y-3">
+                {room.winPattern === "bingo" && (
+                  <BingoProgress
+                    lines={completedLineCount(self.card, calledSet)}
+                    goal={room.lineGoal}
+                  />
+                )}
+
                 <BingoCard
                   card={self.card}
                   calledSet={calledSet}
@@ -172,6 +190,12 @@ function ConnectionDot({ status }: { status: string }) {
   );
 }
 
+function winPatternBlurb(winPattern: string): string {
+  if (winPattern === "blackout") return "filling the whole card (blackout)";
+  if (winPattern === "line") return "completing any line — row, column, or diagonal";
+  return "completing five lines to spell out B-I-N-G-O";
+}
+
 function LobbyPanel({
   isHost,
   winPattern,
@@ -187,8 +211,8 @@ function LobbyPanel({
     <div className="rounded-xl border bg-card p-6 text-center">
       <h2 className="text-lg font-semibold">Waiting in the lobby</h2>
       <p className="mt-1 text-sm text-muted-foreground">
-        Share the room code so friends can join. Win by completing{" "}
-        {winPattern === "blackout" ? "the whole card (blackout)" : "any line — row, column, or diagonal"}.
+        Share the room code so friends can join. Players take turns picking the number to
+        call — each call plays for everyone. Win by {winPatternBlurb(winPattern)}.
       </p>
       <div className="mt-6">
         {isHost ? (
@@ -207,12 +231,12 @@ function LobbyPanel({
 
 function CallPanel({
   room,
+  isMyTurn,
+  selfId,
 }: {
-  room: {
-    currentNumber: number | null;
-    calledNumbers: number[];
-    callsRemaining: number;
-  };
+  room: RoomState;
+  isMyTurn: boolean;
+  selfId: string;
 }) {
   const recent = useMemo(() => room.calledNumbers.slice(-8).reverse(), [room.calledNumbers]);
   return (
@@ -230,10 +254,31 @@ function CallPanel({
           )}
         </div>
         <div className="text-right">
-          <p className="text-xs uppercase tracking-wide text-muted-foreground">Balls left</p>
+          <p className="text-xs uppercase tracking-wide text-muted-foreground">Numbers left</p>
           <p className="mt-1 text-2xl font-semibold tabular-nums">{room.callsRemaining}</p>
         </div>
       </div>
+
+      {room.phase === "playing" && (
+        <div
+          className={cn(
+            "mt-4 rounded-lg px-3 py-2 text-center text-sm font-medium",
+            isMyTurn ? "bg-primary/10 text-primary" : "bg-muted text-muted-foreground",
+          )}
+        >
+          {isMyTurn ? (
+            "Your turn — pick a number to call for everyone."
+          ) : room.turnPlayerName ? (
+            <>
+              Waiting for <span className="font-semibold">{room.turnPlayerName}</span>
+              {room.turnPlayerId === selfId ? " (you)" : ""} to call…
+            </>
+          ) : (
+            "Waiting for the next caller…"
+          )}
+        </div>
+      )}
+
       <div className="mt-4 flex flex-wrap gap-1.5">
         {recent.map((n) => (
           <span
@@ -246,6 +291,74 @@ function CallPanel({
         ))}
         {recent.length === 0 && <span className="text-sm text-muted-foreground">No numbers called yet…</span>}
       </div>
+    </div>
+  );
+}
+
+/**
+ * On the current player's turn, a grid of every uncalled number (grouped into
+ * the B/I/N/G/O columns) to pick the next call from. The pick plays for all.
+ */
+function NumberPicker({
+  calledSet,
+  onPick,
+}: {
+  calledSet: Set<number>;
+  onPick: (n: number) => void;
+}) {
+  return (
+    <div className="rounded-xl border bg-card p-4">
+      <p className="mb-3 text-sm font-semibold">Pick a number to call</p>
+      <div className="grid grid-cols-5 gap-1.5">
+        {BINGO_LETTERS.map((letter, col) => (
+          <div key={letter} className="flex flex-col gap-1.5">
+            <div className="flex h-7 items-center justify-center rounded-md bg-primary text-sm font-bold text-primary-foreground">
+              {letter}
+            </div>
+            {Array.from({ length: 15 }, (_, row) => col * 15 + row + 1).map((n) => {
+              const done = calledSet.has(n);
+              return (
+                <button
+                  key={n}
+                  type="button"
+                  disabled={done}
+                  onClick={() => onPick(n)}
+                  className={cn(
+                    "flex h-8 items-center justify-center rounded-md border text-sm font-medium tabular-nums transition-colors",
+                    done
+                      ? "cursor-not-allowed border-transparent bg-muted text-muted-foreground/50 line-through"
+                      : "hover:border-primary hover:bg-primary/10 hover:text-primary",
+                  )}
+                >
+                  {n}
+                </button>
+              );
+            })}
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+/** BINGO letter progress — a letter lights up for each completed line. */
+function BingoProgress({ lines, goal }: { lines: number; goal: number }) {
+  const won = Math.min(lines, goal);
+  return (
+    <div className="mx-auto flex max-w-sm items-center justify-center gap-1.5">
+      {BINGO_LETTERS.map((letter, i) => (
+        <span
+          key={letter}
+          className={cn(
+            "flex size-9 items-center justify-center rounded-md text-lg font-bold transition-colors",
+            i < won
+              ? "bg-primary text-primary-foreground"
+              : "border border-dashed border-muted-foreground/30 text-muted-foreground/40",
+          )}
+        >
+          {letter}
+        </span>
+      ))}
     </div>
   );
 }
@@ -322,20 +435,4 @@ function PlayerList({
       </ul>
     </div>
   );
-}
-
-/**
- * Client-side mirror of the server's win check, used only to animate the BINGO
- * button when the player actually has a completable pattern. The server remains
- * the source of truth on claim.
- */
-function hasCompletableWin(card: number[], called: Set<number>, pattern: string): boolean {
-  const marked = (i: number) => card[i] === 0 || called.has(card[i]);
-  if (pattern === "blackout") return card.every((n) => n === 0 || called.has(n));
-  const lines: number[][] = [];
-  for (let r = 0; r < 5; r++) lines.push([0, 1, 2, 3, 4].map((c) => r * 5 + c));
-  for (let c = 0; c < 5; c++) lines.push([0, 1, 2, 3, 4].map((r) => r * 5 + c));
-  lines.push([0, 6, 12, 18, 24]);
-  lines.push([4, 8, 12, 16, 20]);
-  return lines.some((line) => line.every(marked));
 }

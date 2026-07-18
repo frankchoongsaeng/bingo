@@ -16,21 +16,13 @@ import { cn } from "@/utils";
 import { createRoom, joinRoom, saveIdentity } from "./client";
 import type { WinPattern } from "./types";
 
-type Pace = { label: string; ms: number };
-const PACES: Pace[] = [
-  { label: "Relaxed", ms: 5000 },
-  { label: "Normal", ms: 3500 },
-  { label: "Fast", ms: 2000 },
-];
-
 export function BingoHome() {
   const navigate = useNavigate();
   const [tab, setTab] = useState<"create" | "join">("create");
 
   // Create form
   const [hostName, setHostName] = useState("");
-  const [winPattern, setWinPattern] = useState<WinPattern>("line");
-  const [paceMs, setPaceMs] = useState(3500);
+  const [winPattern, setWinPattern] = useState<WinPattern>("bingo");
 
   // Join form
   const [joinCode, setJoinCode] = useState("");
@@ -47,7 +39,6 @@ export function BingoHome() {
       const result = await createRoom({
         playerName: hostName.trim() || "Host",
         winPattern,
-        callIntervalMs: paceMs,
       });
       saveIdentity(result.room.id, { playerId: result.you.id, token: result.you.token });
       navigate(`/room/${result.room.id}`);
@@ -126,35 +117,30 @@ export function BingoHome() {
 
               <div className="space-y-1.5">
                 <Label>Win pattern</Label>
-                <div className="grid grid-cols-2 gap-2">
+                <div className="grid grid-cols-3 gap-2">
+                  <OptionButton
+                    active={winPattern === "bingo"}
+                    title="BINGO"
+                    subtitle="Spell it — 5 lines"
+                    onClick={() => setWinPattern("bingo")}
+                  />
                   <OptionButton
                     active={winPattern === "line"}
                     title="Any line"
-                    subtitle="Row, column or diagonal"
+                    subtitle="Row, col or diagonal"
                     onClick={() => setWinPattern("line")}
                   />
                   <OptionButton
                     active={winPattern === "blackout"}
                     title="Blackout"
-                    subtitle="Fill the whole card"
+                    subtitle="Fill the card"
                     onClick={() => setWinPattern("blackout")}
                   />
                 </div>
-              </div>
-
-              <div className="space-y-1.5">
-                <Label>Calling pace</Label>
-                <div className="grid grid-cols-3 gap-2">
-                  {PACES.map((p) => (
-                    <OptionButton
-                      key={p.ms}
-                      active={paceMs === p.ms}
-                      title={p.label}
-                      subtitle={`${p.ms / 1000}s`}
-                      onClick={() => setPaceMs(p.ms)}
-                    />
-                  ))}
-                </div>
+                <p className="text-xs text-muted-foreground">
+                  Players take turns picking the number to call — every call plays for
+                  everyone.
+                </p>
               </div>
 
               {error && <p className="text-sm text-destructive">{error}</p>}

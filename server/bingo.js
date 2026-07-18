@@ -10,9 +10,10 @@
 // Classic 75-ball bingo, played in turns:
 //   - Each player gets a 5x5 card. Columns are B(1-15) I(16-30) N(31-45)
 //     G(46-60) O(61-75); the centre square is a free space.
-//   - Once the host starts, players take turns. On your turn you pick which
-//     number to call, and that call plays for everyone — the server pushes it
-//     to every connected client over Server-Sent Events and moves the turn on.
+//   - Once the host starts, players take turns. On your turn you tap a square on
+//     your own card to call that number, and the call plays for everyone — the
+//     server pushes it to every connected client over Server-Sent Events and
+//     moves the turn on.
 //   - Cards auto-daub called numbers. The first player to hit "BINGO!" with a
 //     genuinely complete pattern wins; the server validates every claim.
 //

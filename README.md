@@ -5,9 +5,10 @@ your friends to a bingo — live over the internet.
 
 - **Classic 75-ball bingo.** Each player gets a 5×5 card (B/I/N/G/O columns with
   a free centre square).
-- **Take turns calling.** Once the host starts, players take turns picking which
-  number to call. Every call plays for everyone and is pushed instantly over
-  Server-Sent Events, then the turn passes to the next player.
+- **Take turns calling.** Once the host starts, players take turns tapping a
+  square on their own card to call that number. Every call plays for everyone and
+  is pushed instantly over Server-Sent Events, then the turn passes to the next
+  player.
 - **Spell out BINGO.** The default win mode is to complete five lines — one for
   each letter of B-I-N-G-O. You can also play for any single line or a full
   blackout.

@@ -68,10 +68,6 @@ export function BingoRoomView({ code, onLeave }: { code: string; onLeave: () => 
                 />
               )}
 
-              {room.phase === "playing" && isMyTurn && (
-                <NumberPicker calledSet={calledSet} onPick={bingo.call} />
-              )}
-
               <div className="space-y-3">
                 {room.winPattern === "bingo" && (
                   <BingoProgress
@@ -85,6 +81,8 @@ export function BingoRoomView({ code, onLeave }: { code: string; onLeave: () => 
                   calledSet={calledSet}
                   winningLine={iWon ? room.winningLine : null}
                   dimmed={someoneWon && !iWon}
+                  callable={room.phase === "playing" && isMyTurn}
+                  onCall={bingo.call}
                 />
 
                 {room.phase === "playing" && (
@@ -211,8 +209,9 @@ function LobbyPanel({
     <div className="rounded-xl border bg-card p-6 text-center">
       <h2 className="text-lg font-semibold">Waiting in the lobby</h2>
       <p className="mt-1 text-sm text-muted-foreground">
-        Share the room code so friends can join. Players take turns picking the number to
-        call — each call plays for everyone. Win by {winPatternBlurb(winPattern)}.
+        Share the room code so friends can join. Players take turns tapping a square on
+        their own card to call it — each call plays for everyone. Win by{" "}
+        {winPatternBlurb(winPattern)}.
       </p>
       <div className="mt-6">
         {isHost ? (
@@ -267,7 +266,7 @@ function CallPanel({
           )}
         >
           {isMyTurn ? (
-            "Your turn — pick a number to call for everyone."
+            "Your turn — tap a square on your card to call it for everyone."
           ) : room.turnPlayerName ? (
             <>
               Waiting for <span className="font-semibold">{room.turnPlayerName}</span>
@@ -290,52 +289,6 @@ function CallPanel({
           </span>
         ))}
         {recent.length === 0 && <span className="text-sm text-muted-foreground">No numbers called yet…</span>}
-      </div>
-    </div>
-  );
-}
-
-/**
- * On the current player's turn, a grid of every uncalled number (grouped into
- * the B/I/N/G/O columns) to pick the next call from. The pick plays for all.
- */
-function NumberPicker({
-  calledSet,
-  onPick,
-}: {
-  calledSet: Set<number>;
-  onPick: (n: number) => void;
-}) {
-  return (
-    <div className="rounded-xl border bg-card p-4">
-      <p className="mb-3 text-sm font-semibold">Pick a number to call</p>
-      <div className="grid grid-cols-5 gap-1.5">
-        {BINGO_LETTERS.map((letter, col) => (
-          <div key={letter} className="flex flex-col gap-1.5">
-            <div className="flex h-7 items-center justify-center rounded-md bg-primary text-sm font-bold text-primary-foreground">
-              {letter}
-            </div>
-            {Array.from({ length: 15 }, (_, row) => col * 15 + row + 1).map((n) => {
-              const done = calledSet.has(n);
-              return (
-                <button
-                  key={n}
-                  type="button"
-                  disabled={done}
-                  onClick={() => onPick(n)}
-                  className={cn(
-                    "flex h-8 items-center justify-center rounded-md border text-sm font-medium tabular-nums transition-colors",
-                    done
-                      ? "cursor-not-allowed border-transparent bg-muted text-muted-foreground/50 line-through"
-                      : "hover:border-primary hover:bg-primary/10 hover:text-primary",
-                  )}
-                >
-                  {n}
-                </button>
-              );
-            })}
-          </div>
-        ))}
       </div>
     </div>
   );

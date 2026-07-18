@@ -10,6 +10,7 @@
 // stream is never intercepted or buffered.
 
 import express from "express";
+import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -36,6 +37,20 @@ if (mode !== "production") {
   app.get("*", (_req, res) => res.sendFile(path.join(dist, "index.html")));
 }
 
+// Pick the first non-internal IPv4 address so friends on the same network can
+// join without hunting for the host machine's LAN IP.
+function networkAddress() {
+  for (const iface of Object.values(os.networkInterfaces())) {
+    for (const net of iface ?? []) {
+      if (net.family === "IPv4" && !net.internal) return net.address;
+    }
+  }
+  return null;
+}
+
 app.listen(port, () => {
-  console.log(`\n  ➜  Realtime Bingo running at http://localhost:${port}\n`);
+  const lan = networkAddress();
+  console.log(`\n  ➜  Local:    http://localhost:${port}`);
+  if (lan) console.log(`  ➜  Network:  http://${lan}:${port}`);
+  console.log("");
 });

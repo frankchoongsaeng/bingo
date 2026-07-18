@@ -7,11 +7,12 @@
 // persisted — rooms evaporate when the process restarts, which is the right
 // lifetime for an ephemeral game session.
 //
-// Classic 75-ball bingo:
+// Classic 75-ball bingo, played in turns:
 //   - Each player gets a 5x5 card. Columns are B(1-15) I(16-30) N(31-45)
 //     G(46-60) O(61-75); the centre square is a free space.
-//   - Once the host starts, the server draws a fresh number on a timer and
-//     pushes it to every connected client over Server-Sent Events.
+//   - Once the host starts, players take turns. On your turn you pick which
+//     number to call, and that call plays for everyone — the server pushes it
+//     to every connected client over Server-Sent Events and moves the turn on.
 //   - Cards auto-daub called numbers. The first player to hit "BINGO!" with a
 //     genuinely complete pattern wins; the server validates every claim.
 //
@@ -29,9 +30,8 @@ const COLUMN_RANGES = [
   [61, 75], // O
 ];
 
-const DEFAULT_CALL_INTERVAL_MS = 3500;
-const MIN_CALL_INTERVAL_MS = 1500;
-const MAX_CALL_INTERVAL_MS = 8000;
+// "bingo" mode: complete this many lines to spell out B-I-N-G-O and win.
+const BINGO_LINE_GOAL = 5;
 const SSE_KEEPALIVE_MS = 25000;
 // Rooms with no connected players are swept after this long so abandoned
 // lobbies don't leak memory.
@@ -80,20 +80,37 @@ const WIN_LINES = (() => {
   return lines;
 })();
 
+/** Count how many of the 12 winning lines a card has fully marked. */
+function completedLines(card, called) {
+  const isMarked = (idx) => card[idx] === 0 || called.has(card[idx]);
+  return WIN_LINES.filter((line) => line.every(isMarked));
+}
+
 /**
  * Given a card and the set of called numbers, return the winning pattern the
  * card satisfies, or null. The free centre square always counts as marked.
  *
+ *   - "line":     any single row, column or diagonal.
+ *   - "bingo":    complete five lines to spell out B-I-N-G-O (the default).
+ *   - "blackout": every square marked.
+ *
  * @param {number[]} card
  * @param {Set<number>} called
- * @param {"line"|"blackout"} pattern
- * @returns {{ kind: "line", cells: number[] } | { kind: "blackout", cells: number[] } | null}
+ * @param {"line"|"bingo"|"blackout"} pattern
+ * @returns {{ kind: string, cells: number[] } | null}
  */
 function findWin(card, called, pattern) {
   const isMarked = (idx) => card[idx] === 0 || called.has(card[idx]);
   if (pattern === "blackout") {
     const all = card.every((n) => n === 0 || called.has(n));
     if (all) return { kind: "blackout", cells: card.map((_, i) => i) };
+    return null;
+  }
+  if (pattern === "bingo") {
+    const lines = completedLines(card, called);
+    if (lines.length >= BINGO_LINE_GOAL) {
+      return { kind: "bingo", cells: [...new Set(lines.flat())] };
+    }
     return null;
   }
   for (const line of WIN_LINES) {
@@ -136,42 +153,40 @@ function makeRoomCode() {
  * @property {string} id
  * @property {"lobby"|"playing"|"finished"} phase
  * @property {string} hostPlayerId
- * @property {"line"|"blackout"} winPattern
- * @property {number} callIntervalMs
+ * @property {"line"|"bingo"|"blackout"} winPattern
  * @property {Map<string, Player>} players
  * @property {number[]} calledNumbers
  * @property {Set<number>} calledSet
+ * @property {string|null} turnPlayerId
  * @property {string|null} winnerId
  * @property {number[]|null} winningLine
- * @property {NodeJS.Timeout|null} callTimer
  * @property {number|null} emptySince
  */
 
-function createRoom({ winPattern, callIntervalMs }) {
+function normalizeWinPattern(raw) {
+  if (raw === "blackout") return "blackout";
+  if (raw === "line") return "line";
+  return "bingo"; // default: spell out B-I-N-G-O across five lines
+}
+
+function createRoom({ winPattern }) {
   const id = makeRoomCode();
   /** @type {Room} */
   const room = {
     id,
     phase: "lobby",
     hostPlayerId: "",
-    winPattern: winPattern === "blackout" ? "blackout" : "line",
-    callIntervalMs: clampInterval(callIntervalMs),
+    winPattern: normalizeWinPattern(winPattern),
     players: new Map(),
     calledNumbers: [],
     calledSet: new Set(),
+    turnPlayerId: null,
     winnerId: null,
     winningLine: null,
-    callTimer: null,
     emptySince: null,
   };
   rooms.set(id, room);
   return room;
-}
-
-function clampInterval(ms) {
-  const n = Number(ms);
-  if (!Number.isFinite(n)) return DEFAULT_CALL_INTERVAL_MS;
-  return Math.min(MAX_CALL_INTERVAL_MS, Math.max(MIN_CALL_INTERVAL_MS, Math.round(n)));
 }
 
 function addPlayer(room, name, isHost) {
@@ -197,12 +212,13 @@ function addPlayer(room, name, isHost) {
 /** Public room state — safe to broadcast to everyone (no cards, no tokens). */
 function publicState(room) {
   const winner = room.winnerId ? room.players.get(room.winnerId) : null;
+  const turnPlayer = room.turnPlayerId ? room.players.get(room.turnPlayerId) : null;
   return {
     id: room.id,
     phase: room.phase,
     hostPlayerId: room.hostPlayerId,
     winPattern: room.winPattern,
-    callIntervalMs: room.callIntervalMs,
+    lineGoal: BINGO_LINE_GOAL,
     players: [...room.players.values()].map((p) => ({
       id: p.id,
       name: p.name,
@@ -213,6 +229,8 @@ function publicState(room) {
     calledNumbers: room.calledNumbers,
     currentNumber: room.calledNumbers.length ? room.calledNumbers[room.calledNumbers.length - 1] : null,
     callsRemaining: 75 - room.calledNumbers.length,
+    turnPlayerId: room.turnPlayerId,
+    turnPlayerName: turnPlayer ? turnPlayer.name : null,
     winnerId: room.winnerId,
     winnerName: winner ? winner.name : null,
     winningLine: room.winningLine,
@@ -243,40 +261,41 @@ function broadcastState(room) {
   }
 }
 
-// ── Number calling ───────────────────────────────────────────────────────────
+// ── Turn-based number calling ────────────────────────────────────────────────
 
-function startCalling(room) {
-  if (room.callTimer) return;
-  const remaining = shuffled(
-    Array.from({ length: 75 }, (_, i) => i + 1).filter((n) => !room.calledSet.has(n)),
-  );
-  const tick = () => {
-    if (room.phase !== "playing") return stopCalling(room);
-    const next = remaining.pop();
-    if (next === undefined) {
-      // Every ball drawn with no winner — the round is a draw.
-      finishRoom(room, null, null);
+// Hand the turn to the next connected player after the current one, wrapping
+// around. Falls back to the next player in order if nobody is connected.
+function advanceTurn(room) {
+  const ids = [...room.players.keys()];
+  if (ids.length === 0) {
+    room.turnPlayerId = null;
+    return;
+  }
+  const start = ids.indexOf(room.turnPlayerId); // -1 when unset/absent
+  for (let step = 1; step <= ids.length; step++) {
+    const candidate = ids[(start + step) % ids.length];
+    if (room.players.get(candidate)?.sse) {
+      room.turnPlayerId = candidate;
       return;
     }
-    room.calledNumbers.push(next);
-    room.calledSet.add(next);
-    broadcastState(room);
-  };
-  room.callTimer = setInterval(tick, room.callIntervalMs);
-  // Draw the first ball immediately so the game feels responsive.
-  tick();
+  }
+  room.turnPlayerId = ids[(start + 1) % ids.length];
 }
 
-function stopCalling(room) {
-  if (room.callTimer) {
-    clearInterval(room.callTimer);
-    room.callTimer = null;
-  }
+// If the player whose turn it is has gone (left or disconnected), move on so
+// the game doesn't stall. Broadcasts if the turn actually changed.
+function ensureLiveTurn(room) {
+  if (room.phase !== "playing") return;
+  const current = room.turnPlayerId ? room.players.get(room.turnPlayerId) : null;
+  if (current && current.sse) return;
+  const before = room.turnPlayerId;
+  advanceTurn(room);
+  if (room.turnPlayerId !== before) broadcastState(room);
 }
 
 function finishRoom(room, winnerId, winningLine) {
-  stopCalling(room);
   room.phase = "finished";
+  room.turnPlayerId = null;
   room.winnerId = winnerId;
   room.winningLine = winningLine;
   if (winnerId) {
@@ -298,7 +317,6 @@ const sweeper = setInterval(() => {
   const now = Date.now();
   for (const [id, room] of rooms) {
     if (room.emptySince !== null && now - room.emptySince > EMPTY_ROOM_TTL_MS) {
-      stopCalling(room);
       rooms.delete(id);
     }
   }
@@ -325,10 +343,7 @@ export function createBingoRouter() {
   // Create a room and become its host.
   router.post("/rooms", (req, res) => {
     const name = sanitizeName(req.body?.playerName, "Host");
-    const room = createRoom({
-      winPattern: req.body?.winPattern,
-      callIntervalMs: req.body?.callIntervalMs,
-    });
+    const room = createRoom({ winPattern: req.body?.winPattern });
     const host = addPlayer(room, name, true);
     res.status(201).json({ room: publicState(room), you: { ...selfState(host), token: host.token } });
   });
@@ -382,6 +397,9 @@ export function createBingoRouter() {
     sendEvent(res, "state", publicState(room));
     sendEvent(res, "self", selfState(player));
     broadcastState(room); // let others see the reconnection
+    // If the turn was stranded on an absent player, a fresh connection can move
+    // it along (e.g. to this player if they're now the only one live).
+    ensureLiveTurn(room);
 
     const keepalive = setInterval(() => {
       try {
@@ -398,6 +416,8 @@ export function createBingoRouter() {
       if (rooms.has(room.id)) {
         markMaybeEmpty(room);
         broadcastState(room);
+        // Don't let a dropped connection freeze the turn on an absent player.
+        ensureLiveTurn(room);
       }
     });
   });
@@ -410,7 +430,38 @@ export function createBingoRouter() {
     if (!auth.player.isHost) return res.status(403).json({ message: "Only the host can start the game" });
     if (room.phase !== "lobby") return res.status(409).json({ message: "The game is already underway" });
     room.phase = "playing";
-    startCalling(room);
+    // First turn goes to the host (the first player added to the room).
+    room.turnPlayerId = null;
+    advanceTurn(room);
+    broadcastState(room);
+    res.json({ ok: true });
+  });
+
+  // Call a number. Only the player whose turn it is may call, and the call
+  // plays for everyone. The turn then passes to the next player.
+  router.post("/rooms/:code/call", (req, res) => {
+    const room = rooms.get(String(req.params.code).toUpperCase());
+    const auth = authPlayer(room, req.body?.playerId, req.body?.token);
+    if (auth.error) return res.status(auth.error).json({ message: auth.message });
+    if (room.phase !== "playing") return res.status(409).json({ message: "No game in progress" });
+    if (room.turnPlayerId !== auth.player.id) {
+      return res.status(409).json({ message: "It's not your turn to call" });
+    }
+    const number = Number(req.body?.number);
+    if (!Number.isInteger(number) || number < 1 || number > 75) {
+      return res.status(400).json({ message: "Pick a number from 1 to 75" });
+    }
+    if (room.calledSet.has(number)) {
+      return res.status(409).json({ message: "That number has already been called" });
+    }
+    room.calledNumbers.push(number);
+    room.calledSet.add(number);
+    if (room.calledNumbers.length >= 75) {
+      // Every number is out with no winner — the round is a draw.
+      finishRoom(room, null, null);
+      return res.json({ ok: true });
+    }
+    advanceTurn(room);
     broadcastState(room);
     res.json({ ok: true });
   });
@@ -433,10 +484,10 @@ export function createBingoRouter() {
     const auth = authPlayer(room, req.body?.playerId, req.body?.token);
     if (auth.error) return res.status(auth.error).json({ message: auth.message });
     if (!auth.player.isHost) return res.status(403).json({ message: "Only the host can restart" });
-    stopCalling(room);
     room.phase = "lobby";
     room.calledNumbers = [];
     room.calledSet = new Set();
+    room.turnPlayerId = null;
     room.winnerId = null;
     room.winningLine = null;
     for (const p of room.players.values()) {
@@ -464,9 +515,9 @@ export function createBingoRouter() {
         // already closed
       }
     }
+    const wasTheirTurn = room.turnPlayerId === auth.player.id;
     room.players.delete(auth.player.id);
     if (room.players.size === 0) {
-      stopCalling(room);
       rooms.delete(room.id);
       return res.json({ ok: true });
     }
@@ -475,6 +526,8 @@ export function createBingoRouter() {
       next.isHost = true;
       room.hostPlayerId = next.id;
     }
+    // If the departing player held the turn, pass it on so play continues.
+    if (wasTheirTurn && room.phase === "playing") advanceTurn(room);
     broadcastState(room);
     res.json({ ok: true });
   });

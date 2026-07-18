@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 
 import type { Identity, RoomState, SelfState } from "./types";
 import {
+  callNumber,
   claimBingo,
   clearIdentity,
   eventsUrl,
@@ -24,6 +25,7 @@ export interface BingoRoom {
   claimResult: string | null;
   clearMessages: () => void;
   start: () => Promise<void>;
+  call: (n: number) => Promise<void>;
   claim: () => Promise<void>;
   restart: () => Promise<void>;
   leave: () => Promise<void>;
@@ -130,6 +132,11 @@ export function useBingoRoom(code: string): BingoRoom {
     [code, withIdentity],
   );
 
+  const call = useCallback(
+    (n: number) => withIdentity((id) => callNumber(code, id, n).then(() => undefined)),
+    [code, withIdentity],
+  );
+
   const claim = useCallback(
     () =>
       withIdentity(async (id) => {
@@ -163,6 +170,7 @@ export function useBingoRoom(code: string): BingoRoom {
     claimResult,
     clearMessages,
     start,
+    call,
     claim,
     restart,
     leave,

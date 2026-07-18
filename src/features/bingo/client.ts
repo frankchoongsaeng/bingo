@@ -24,7 +24,6 @@ async function postJson<T>(path: string, body: unknown): Promise<T> {
 export function createRoom(input: {
   playerName: string;
   winPattern: WinPattern;
-  callIntervalMs: number;
 }): Promise<JoinResult> {
   return postJson<JoinResult>("/rooms", input);
 }
@@ -35,6 +34,13 @@ export function joinRoom(code: string, playerName: string): Promise<JoinResult> 
 
 export function startGame(code: string, id: Identity) {
   return postJson<{ ok: boolean }>(`/rooms/${encodeURIComponent(code)}/start`, id.token ? idBody(id) : {});
+}
+
+export function callNumber(code: string, id: Identity, number: number) {
+  return postJson<{ ok: boolean }>(`/rooms/${encodeURIComponent(code)}/call`, {
+    ...idBody(id),
+    number,
+  });
 }
 
 export function claimBingo(code: string, id: Identity) {

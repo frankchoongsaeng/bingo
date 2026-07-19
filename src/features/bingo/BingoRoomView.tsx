@@ -137,9 +137,7 @@ export function BingoRoomView({ code, onLeave }: { code: string; onLeave: () => 
           )}
 
           {room.phase !== "lobby" && (
-            <div className="space-y-6">
-              <CallPanel room={room} isMyTurn={isMyTurn} selfId={self.id} />
-
+            <div className="space-y-5">
               {someoneWon && (
                 <WinnerBanner
                   iWon={iWon}
@@ -166,6 +164,13 @@ export function BingoRoomView({ code, onLeave }: { code: string; onLeave: () => 
                   selectedCell={pendingCell}
                   onSelectCell={selectCell}
                 />
+
+                {room.phase === "playing" && !isMyTurn && (
+                  <TurnLine
+                    turnPlayerName={room.turnPlayerName}
+                    isSelf={room.turnPlayerId === self.id}
+                  />
+                )}
 
                 {room.phase === "playing" && isMyTurn && (
                   <div className="mx-auto max-w-sm">
@@ -207,6 +212,10 @@ export function BingoRoomView({ code, onLeave }: { code: string; onLeave: () => 
                     {bingo.claimResult}
                   </p>
                 )}
+
+                {/* The calling card — a small one-line reference to what's out,
+                    sitting below the call button. */}
+                <CallStrip room={room} />
               </div>
             </div>
           )}
@@ -367,81 +376,56 @@ function LobbyPanel({
   );
 }
 
-/** The caller's stand — current ball, balls left, recent calls and turn status. */
-function CallPanel({
-  room,
-  isMyTurn,
-  selfId,
+/** Slim line naming whose turn it is (shown only when it isn't yours). */
+function TurnLine({
+  turnPlayerName,
+  isSelf,
 }: {
-  room: RoomState;
-  isMyTurn: boolean;
-  selfId: string;
+  turnPlayerName: string | null;
+  isSelf: boolean;
 }) {
-  const recent = useMemo(() => room.calledNumbers.slice(-5).reverse(), [room.calledNumbers]);
   return (
-    <section className="rounded-xl border-2 border-felt-2 bg-felt-3 p-5 shadow-[inset_0_1px_0_rgba(255,255,255,0.06),0_16px_30px_-16px_rgba(0,0,0,0.7)]">
-      <div className="flex items-center justify-between gap-4">
-        <p className="script text-xl text-brass-hi">
-          {room.currentNumber ? "Now calling" : "Eyes down!"}
-        </p>
-        <div className="rounded-lg border border-brass/40 bg-felt-2 px-3 py-1 text-center">
-          <span className="block text-[0.55rem] font-bold uppercase tracking-[0.18em] text-brass-hi/80">
-            Balls left
-          </span>
-          <span className="signage text-xl text-cream">{room.callsRemaining}</span>
-        </div>
-      </div>
-
-      <div className="mt-3 flex items-center gap-5">
-        {room.currentNumber ? (
-          <div key={room.currentNumber} className="animate-ball-in">
-            <Ball n={room.currentNumber} />
-          </div>
-        ) : (
-          <div className="flex size-24 items-center justify-center rounded-full border-2 border-dashed border-cream/30 text-cream/40 sm:size-28">
-            <span className="signage text-4xl">?</span>
-          </div>
-        )}
-
-        <div className="min-w-0 flex-1">
-          <p className="text-[0.6rem] font-bold uppercase tracking-[0.18em] text-cream/50">
-            Recent calls
-          </p>
-          <div className="mt-2 flex flex-wrap gap-1.5">
-            {recent.map((n) => (
-              <span key={n} className="animate-ball-in inline-flex">
-                <Ball n={n} size="sm" />
-              </span>
-            ))}
-            {recent.length === 0 && (
-              <span className="text-sm text-cream/50">No numbers out yet…</span>
-            )}
-          </div>
-        </div>
-      </div>
-
-      {room.phase === "playing" && (
-        <div
-          className={cn(
-            "mt-4 rounded-lg px-3 py-2 text-center text-sm font-semibold",
-            isMyTurn
-              ? "border border-brass/60 bg-[rgba(230,198,90,0.16)] text-brass-hi"
-              : "bg-felt-2 text-cream/70",
-          )}
-        >
-          {isMyTurn ? (
-            "Your turn to call."
-          ) : room.turnPlayerName ? (
-            <>
-              Waiting for <span className="font-bold text-cream">{room.turnPlayerName}</span>
-              {room.turnPlayerId === selfId ? " (you)" : ""} to call…
-            </>
-          ) : (
-            "Waiting for the next caller…"
-          )}
-        </div>
+    <p className="text-center text-sm font-semibold text-cream/70">
+      {turnPlayerName ? (
+        <>
+          Waiting for <span className="text-cream">{turnPlayerName}</span>
+          {isSelf ? " (you)" : ""} to call…
+        </>
+      ) : (
+        "Waiting for the next caller…"
       )}
-    </section>
+    </p>
+  );
+}
+
+/**
+ * The calling card — a compact one-line strip showing the ball just called,
+ * a few recent numbers and how many are left. Sits below the call button.
+ */
+function CallStrip({ room }: { room: RoomState }) {
+  const recent = useMemo(() => room.calledNumbers.slice(-6).reverse(), [room.calledNumbers]);
+  const current = room.currentNumber;
+  return (
+    <div className="mx-auto flex max-w-sm items-center gap-2 overflow-x-auto rounded-lg border border-felt-2 bg-felt-3 px-3 py-1.5">
+      <span className="shrink-0 text-[0.55rem] font-bold uppercase tracking-[0.14em] text-cream/45">
+        Now calling
+      </span>
+      {current ? (
+        <span key={current} className="animate-ball-in shrink-0">
+          <Ball n={current} size="sm" />
+        </span>
+      ) : (
+        <span className="script shrink-0 text-brass-hi/80">eyes down…</span>
+      )}
+      {recent.length > 1 && (
+        <span className="ticketnum shrink-0 text-xs tracking-wide text-cream/40">
+          {recent.slice(1).join("  ")}
+        </span>
+      )}
+      <span className="ml-auto shrink-0 whitespace-nowrap text-xs font-semibold text-cream/60">
+        {room.callsRemaining} left
+      </span>
+    </div>
   );
 }
 

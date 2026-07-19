@@ -87,6 +87,34 @@ export function BingoRoomView({ code, onLeave }: { code: string; onLeave: () => 
     if (bingo.claimResult && !bingo.claimResult.startsWith("BINGO")) sfx.buzz();
   }, [bingo.claimResult]);
 
+  // ── Rival B-I-N-G-O progress: a toast + chime whenever another player
+  // completes a new line (bingo mode only). Baseline on first sight so
+  // hydrating into a game in progress doesn't announce old lines. ──
+  const [notices, setNotices] = useState<{ id: number; text: string }[]>([]);
+  const noticeSeq = useRef(0);
+  const prevLines = useRef<Map<string, number>>(new Map());
+  useEffect(() => {
+    if (!room || room.winPattern !== "bingo") return;
+    for (const pl of room.players) {
+      const cur = Math.min(pl.lines, 5);
+      const prev = prevLines.current.get(pl.id);
+      prevLines.current.set(pl.id, cur);
+      if (prev === undefined) continue;
+      if (cur > prev && pl.id !== self?.id && room.phase === "playing") {
+        const text =
+          cur >= 5
+            ? `${pl.name} has a full BINGO!`
+            : cur === 4
+              ? `${pl.name} needs one more line!`
+              : `${pl.name} completed a line — ${cur}/5`;
+        const id = ++noticeSeq.current;
+        setNotices((n) => [...n, { id, text }]);
+        setTimeout(() => setNotices((n) => n.filter((x) => x.id !== id)), 3800);
+        sfx.letter();
+      }
+    }
+  }, [room, self?.id]);
+
   if (needsJoin) {
     return <JoinInline code={code} />;
   }
@@ -120,6 +148,7 @@ export function BingoRoomView({ code, onLeave }: { code: string; onLeave: () => 
 
   return (
     <div className="mx-auto w-full max-w-5xl px-4 py-6 sm:py-9">
+      <NoticeStack notices={notices} />
       <RoomHeader code={code} status={status} onLeave={() => bingo.leave().finally(onLeave)} />
 
       <div className="mt-6 grid gap-6 lg:grid-cols-[1fr_18rem]">
@@ -233,6 +262,7 @@ export function BingoRoomView({ code, onLeave }: { code: string; onLeave: () => 
             selfId={self.id}
             winnerId={room.winnerId}
             phase={room.phase}
+            winPattern={room.winPattern}
           />
         </aside>
       </div>
@@ -539,17 +569,63 @@ function WinnerBanner({
   );
 }
 
+/** Fixed toasts announcing rivals' B-I-N-G-O letters. */
+function NoticeStack({ notices }: { notices: { id: number; text: string }[] }) {
+  if (notices.length === 0) return null;
+  return (
+    <div className="pointer-events-none fixed inset-x-0 top-3 z-50 flex flex-col items-center gap-2 px-4">
+      {notices.map((n) => (
+        <div
+          key={n.id}
+          className="ticket animate-deal max-w-xs rounded-lg px-4 py-2 text-center text-sm font-semibold text-ink shadow-[0_12px_28px_-10px_rgba(0,0,0,0.6)]"
+        >
+          📢 {n.text}
+        </div>
+      ))}
+    </div>
+  );
+}
+
+/** Five B-I-N-G-O pips; the first `lines` light up in brass. */
+function LetterPips({ lines }: { lines: number }) {
+  const done = Math.min(lines, 5);
+  return (
+    <span className="flex shrink-0 items-center gap-[3px]" title={`${done} of 5 letters`}>
+      {BINGO_LETTERS.map((letter, i) => (
+        <span
+          key={letter}
+          className={cn(
+            "flex size-[15px] items-center justify-center rounded-full text-[0.5rem] font-bold leading-none",
+            i < done ? "bg-brass text-ink" : "bg-[rgba(42,32,22,0.1)] text-ink/30",
+          )}
+        >
+          {letter}
+        </span>
+      ))}
+    </span>
+  );
+}
+
 /** The table — who's playing, who's connected, who's the caller and who won. */
 function PlayerList({
   players,
   selfId,
   winnerId,
   phase,
+  winPattern,
 }: {
-  players: { id: string; name: string; isHost: boolean; connected: boolean; won: boolean }[];
+  players: {
+    id: string;
+    name: string;
+    isHost: boolean;
+    connected: boolean;
+    won: boolean;
+    lines: number;
+  }[];
   selfId: string;
   winnerId: string | null;
   phase: string;
+  winPattern: string;
 }) {
   return (
     <div className="ticket rounded-xl p-4">
@@ -584,9 +660,11 @@ function PlayerList({
                 </span>
               )}
             </span>
-            {phase === "finished" && p.id === winnerId && (
+            {phase === "finished" && p.id === winnerId ? (
               <Badge className="shrink-0 text-[0.6rem]">Winner</Badge>
-            )}
+            ) : winPattern === "bingo" && phase !== "lobby" ? (
+              <LetterPips lines={p.lines} />
+            ) : null}
           </li>
         ))}
       </ul>

@@ -10,6 +10,8 @@ export interface PublicPlayer {
   isHost: boolean;
   connected: boolean;
   won: boolean;
+  /** Completed lines so far — i.e. how many B-I-N-G-O letters earned. */
+  lines: number;
 }
 
 export interface RoomState {

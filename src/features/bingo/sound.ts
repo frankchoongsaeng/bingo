@@ -130,6 +130,11 @@ export const sfx = {
   buzz(): void {
     tone({ freq: 150, dur: 0.2, type: "sawtooth", gain: 0.18 });
   },
+  /** Bright two-note ding when a player earns a B-I-N-G-O letter. */
+  letter(): void {
+    tone({ freq: 1046, dur: 0.12, type: "triangle", gain: 0.15 });
+    tone({ freq: 1318, dur: 0.22, type: "sine", gain: 0.13, delay: 0.09 });
+  },
   /** Triumphant arpeggio with a sparkle on a BINGO. */
   win(): void {
     [523, 659, 784, 1047].forEach((f, i) =>

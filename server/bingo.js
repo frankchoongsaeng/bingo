@@ -233,6 +233,9 @@ function publicState(room) {
       isHost: p.isHost,
       connected: p.sse !== null,
       won: p.won,
+      // How many lines this player has completed (their B-I-N-G-O letters).
+      // Just a count — never the card itself, so opponents stay hidden.
+      lines: completedLines(p.card, room.calledSet).length,
     })),
     calledNumbers: room.calledNumbers,
     currentNumber: room.calledNumbers.length ? room.calledNumbers[room.calledNumbers.length - 1] : null,

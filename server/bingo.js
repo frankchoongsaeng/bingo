@@ -31,6 +31,18 @@ const COLUMN_RANGES = [
   [61, 75], // O
 ];
 
+// How many numbers each column draws onto a card (one per row).
+const COLUMN_PICKS = 5;
+// Every card in a room draws its column numbers from a shared per-column pool of
+// this many numbers rather than the full range of 15. Because two cards each
+// pick COLUMN_PICKS (5) numbers from the same pool of COLUMN_POOL_SIZE (10), any
+// two players' cards share an expected COLUMN_PICKS² / COLUMN_POOL_SIZE = 2.5
+// numbers per column — about 50% overlap overall. That overlap is deliberate:
+// players call numbers off their own card, so shared numbers let one player's
+// call daub several cards at once, which evens out the edge the first caller
+// would otherwise get from advancing only their own card each round.
+const COLUMN_POOL_SIZE = 10;
+
 // "bingo" mode: complete this many lines to spell out B-I-N-G-O and win.
 const BINGO_LINE_GOAL = 5;
 const SSE_KEEPALIVE_MS = 25000;
@@ -56,17 +68,30 @@ function shuffled(arr) {
 }
 
 /**
- * Build a 5x5 bingo card as a flat array of 25 cells (row-major). When
- * `freeSpace` is true the centre square is a free daub (0); otherwise it holds
- * a normal number that must actually be called.
+ * Build the shared per-column number pools for a room. Every card in the room
+ * draws its numbers from these pools instead of the full 1-15 / 16-30 / …
+ * ranges, so that any two players' cards overlap by ~50% (see COLUMN_POOL_SIZE).
+ * Returns an array of five arrays, one pool per column.
  */
-function makeCard(freeSpace = true) {
+function makeColumnPools() {
+  return COLUMN_RANGES.map(([lo, hi]) => {
+    const range = [];
+    for (let n = lo; n <= hi; n++) range.push(n);
+    return shuffled(range).slice(0, COLUMN_POOL_SIZE);
+  });
+}
+
+/**
+ * Build a 5x5 bingo card as a flat array of 25 cells (row-major). Each column's
+ * numbers are drawn from `columnPools[col]` — the room's shared pool for that
+ * column — so cards across a room overlap by design. When `freeSpace` is true
+ * the centre square is a free daub (0); otherwise it holds a normal number that
+ * must actually be called.
+ */
+function makeCard(columnPools, freeSpace = true) {
   const cells = new Array(25);
   for (let col = 0; col < 5; col++) {
-    const [lo, hi] = COLUMN_RANGES[col];
-    const pool = [];
-    for (let n = lo; n <= hi; n++) pool.push(n);
-    const picks = shuffled(pool).slice(0, 5);
+    const picks = shuffled(columnPools[col]).slice(0, COLUMN_PICKS);
     for (let row = 0; row < 5; row++) {
       cells[row * 5 + col] = picks[row];
     }
@@ -160,6 +185,7 @@ function makeRoomCode() {
  * @property {string} hostPlayerId
  * @property {"line"|"bingo"|"blackout"} winPattern
  * @property {boolean} freeSpace
+ * @property {number[][]} columnPools
  * @property {Map<string, Player>} players
  * @property {number[]} calledNumbers
  * @property {Set<number>} calledSet
@@ -184,6 +210,8 @@ function createRoom({ winPattern, freeSpace }) {
     hostPlayerId: "",
     winPattern: normalizeWinPattern(winPattern),
     freeSpace: freeSpace !== false, // default: keep the classic free centre
+    // Shared per-column number pools so all cards in the room overlap ~50%.
+    columnPools: makeColumnPools(),
     players: new Map(),
     calledNumbers: [],
     calledSet: new Set(),
@@ -203,7 +231,7 @@ function addPlayer(room, name, isHost) {
     id,
     token: randomUUID(),
     name,
-    card: makeCard(room.freeSpace),
+    card: makeCard(room.columnPools, room.freeSpace),
     isHost,
     won: false,
     sse: null,
@@ -501,9 +529,11 @@ export function createBingoRouter() {
     room.turnPlayerId = null;
     room.winnerId = null;
     room.winningLine = null;
+    // Fresh shared pools for the new round, then deal fresh cards from them.
+    room.columnPools = makeColumnPools();
     for (const p of room.players.values()) {
       p.won = false;
-      p.card = makeCard(room.freeSpace);
+      p.card = makeCard(room.columnPools, room.freeSpace);
     }
     // Push everyone their new card, then the shared state.
     for (const p of room.players.values()) {

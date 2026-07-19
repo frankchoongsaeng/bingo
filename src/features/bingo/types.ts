@@ -17,6 +17,8 @@ export interface RoomState {
   phase: Phase;
   hostPlayerId: string;
   winPattern: WinPattern;
+  /** Whether the centre square is a free daub. */
+  freeSpace: boolean;
   /** Lines needed to win in "bingo" mode (spell out B-I-N-G-O). */
   lineGoal: number;
   players: PublicPlayer[];

@@ -55,8 +55,12 @@ function shuffled(arr) {
   return a;
 }
 
-/** Build a 5x5 bingo card as a flat array of 25 cells (row-major). 0 = free. */
-function makeCard() {
+/**
+ * Build a 5x5 bingo card as a flat array of 25 cells (row-major). When
+ * `freeSpace` is true the centre square is a free daub (0); otherwise it holds
+ * a normal number that must actually be called.
+ */
+function makeCard(freeSpace = true) {
   const cells = new Array(25);
   for (let col = 0; col < 5; col++) {
     const [lo, hi] = COLUMN_RANGES[col];
@@ -67,7 +71,7 @@ function makeCard() {
       cells[row * 5 + col] = picks[row];
     }
   }
-  cells[12] = 0; // centre free space
+  if (freeSpace) cells[12] = 0; // centre free space
   return cells;
 }
 
@@ -155,6 +159,7 @@ function makeRoomCode() {
  * @property {"lobby"|"playing"|"finished"} phase
  * @property {string} hostPlayerId
  * @property {"line"|"bingo"|"blackout"} winPattern
+ * @property {boolean} freeSpace
  * @property {Map<string, Player>} players
  * @property {number[]} calledNumbers
  * @property {Set<number>} calledSet
@@ -170,7 +175,7 @@ function normalizeWinPattern(raw) {
   return "bingo"; // default: spell out B-I-N-G-O across five lines
 }
 
-function createRoom({ winPattern }) {
+function createRoom({ winPattern, freeSpace }) {
   const id = makeRoomCode();
   /** @type {Room} */
   const room = {
@@ -178,6 +183,7 @@ function createRoom({ winPattern }) {
     phase: "lobby",
     hostPlayerId: "",
     winPattern: normalizeWinPattern(winPattern),
+    freeSpace: freeSpace !== false, // default: keep the classic free centre
     players: new Map(),
     calledNumbers: [],
     calledSet: new Set(),
@@ -197,7 +203,7 @@ function addPlayer(room, name, isHost) {
     id,
     token: randomUUID(),
     name,
-    card: makeCard(),
+    card: makeCard(room.freeSpace),
     isHost,
     won: false,
     sse: null,
@@ -219,6 +225,7 @@ function publicState(room) {
     phase: room.phase,
     hostPlayerId: room.hostPlayerId,
     winPattern: room.winPattern,
+    freeSpace: room.freeSpace,
     lineGoal: BINGO_LINE_GOAL,
     players: [...room.players.values()].map((p) => ({
       id: p.id,
@@ -344,7 +351,7 @@ export function createBingoRouter() {
   // Create a room and become its host.
   router.post("/rooms", (req, res) => {
     const name = sanitizeName(req.body?.playerName, "Host");
-    const room = createRoom({ winPattern: req.body?.winPattern });
+    const room = createRoom({ winPattern: req.body?.winPattern, freeSpace: req.body?.freeSpace });
     const host = addPlayer(room, name, true);
     res.status(201).json({ room: publicState(room), you: { ...selfState(host), token: host.token } });
   });
@@ -493,7 +500,7 @@ export function createBingoRouter() {
     room.winningLine = null;
     for (const p of room.players.values()) {
       p.won = false;
-      p.card = makeCard();
+      p.card = makeCard(room.freeSpace);
     }
     // Push everyone their new card, then the shared state.
     for (const p of room.players.values()) {

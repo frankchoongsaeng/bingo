@@ -32,6 +32,7 @@ export function BingoHome() {
   // Create form
   const [hostName, setHostName] = useState("");
   const [winPattern, setWinPattern] = useState<WinPattern>("bingo");
+  const [freeSpace, setFreeSpace] = useState(true);
 
   // Join form
   const [joinCode, setJoinCode] = useState("");
@@ -48,6 +49,7 @@ export function BingoHome() {
       const result = await createRoom({
         playerName: hostName.trim() || "Host",
         winPattern,
+        freeSpace,
       });
       saveIdentity(result.room.id, { playerId: result.you.id, token: result.you.token });
       navigate(`/room/${result.room.id}`);
@@ -174,6 +176,24 @@ export function BingoHome() {
                   Players take turns picking a square to call — every call plays for the whole
                   table.
                 </p>
+              </div>
+
+              <div className="space-y-1.5">
+                <Label>Centre square</Label>
+                <div className="grid grid-cols-2 gap-2">
+                  <OptionButton
+                    active={freeSpace}
+                    title="Free space"
+                    subtitle="Centre daubs itself"
+                    onClick={() => setFreeSpace(true)}
+                  />
+                  <OptionButton
+                    active={!freeSpace}
+                    title="No free space"
+                    subtitle="Centre must be called"
+                    onClick={() => setFreeSpace(false)}
+                  />
+                </div>
               </div>
 
               {error && <p className="text-sm font-semibold text-destructive">{error}</p>}

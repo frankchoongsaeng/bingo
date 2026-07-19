@@ -24,6 +24,7 @@ async function postJson<T>(path: string, body: unknown): Promise<T> {
 export function createRoom(input: {
   playerName: string;
   winPattern: WinPattern;
+  freeSpace: boolean;
 }): Promise<JoinResult> {
   return postJson<JoinResult>("/rooms", input);
 }

@@ -50,6 +50,27 @@ npm run build   # type-checks, then builds the SPA into dist/
 npm start       # serves the built app + API on PORT (default 3000)
 ```
 
+### Deploying (Docker / Coolify / any host)
+
+The frontend and backend are **one service**: `server.js` serves the built SPA
+*and* the `/api/bingo` API on the same port. Deploy them together — do **not**
+serve `dist/` from a static file server on its own. A static host answers `GET`
+requests (so the app loads) but rejects the API's `POST` requests with
+**`405 Method Not Allowed`**, so creating or joining a room fails.
+
+A `Dockerfile` is included that builds the SPA and runs the single Node server:
+
+```bash
+docker build -t friday-night-bingo .
+docker run -p 3000:3000 friday-night-bingo   # http://localhost:3000
+```
+
+On **Coolify**, set the application's **Build Pack** to **Dockerfile** (the
+default Nixpacks pack detects a Vite project and serves `dist/` statically,
+which is what produces the 405 on room creation), and set the exposed port to
+**`3000`**. Any host that runs the container — or simply runs `npm run build &&
+npm start` behind a reverse proxy — works the same way.
+
 ## How it works
 
 The game engine lives entirely in `server/bingo.js`:

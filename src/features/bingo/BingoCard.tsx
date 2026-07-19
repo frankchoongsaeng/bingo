@@ -82,14 +82,6 @@ export function BingoCard({
                 <span className="script text-lg text-dauber">free</span>
               ) : (
                 <>
-                  <span
-                    className={cn(
-                      "ticketnum text-xl font-bold",
-                      daubed && !inWin ? "text-[#4a160f]" : "text-ink",
-                    )}
-                  >
-                    {n}
-                  </span>
                   {daubed && !inWin && (
                     <span
                       aria-hidden
@@ -97,6 +89,18 @@ export function BingoCard({
                       style={{ ["--daub-rot" as string]: `${rot}deg` }}
                     />
                   )}
+                  {/* Number sits above the blot in cream so a marked square
+                      stays clearly legible against the berry ink. */}
+                  <span
+                    className={cn(
+                      "ticketnum relative z-10 text-xl font-bold",
+                      daubed && !inWin
+                        ? "text-cream [text-shadow:0_1px_1px_rgba(120,20,35,0.6)]"
+                        : "text-ink",
+                    )}
+                  >
+                    {n}
+                  </span>
                 </>
               )}
             </div>

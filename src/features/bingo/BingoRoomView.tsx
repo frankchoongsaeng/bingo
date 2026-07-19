@@ -182,28 +182,30 @@ export function BingoRoomView({ code, onLeave }: { code: string; onLeave: () => 
                   </div>
                 )}
 
-                {room.phase === "playing" && (
-                  <div className="mx-auto flex max-w-sm flex-col items-center gap-2">
+                {/* The claim only appears once you actually have a winning
+                    pattern — otherwise it's just loud, misleading clutter. */}
+                {room.phase === "playing" && iHaveWin && (
+                  <div className="mx-auto max-w-sm animate-deal">
                     <BingoButton
-                      lit={iHaveWin}
+                      lit
                       onClick={() => {
                         sfx.click();
                         bingo.claim();
                       }}
                     />
-                    {bingo.claimResult && (
-                      <p
-                        className={cn(
-                          "text-center text-sm font-semibold",
-                          bingo.claimResult.startsWith("BINGO")
-                            ? "text-brass-hi"
-                            : "text-cream/70",
-                        )}
-                      >
-                        {bingo.claimResult}
-                      </p>
-                    )}
                   </div>
+                )}
+                {room.phase === "playing" && bingo.claimResult && (
+                  <p
+                    className={cn(
+                      "mx-auto max-w-sm text-center text-sm font-semibold",
+                      bingo.claimResult.startsWith("BINGO")
+                        ? "text-brass-hi"
+                        : "text-cream/70",
+                    )}
+                  >
+                    {bingo.claimResult}
+                  </p>
                 )}
               </div>
             </div>
@@ -238,7 +240,7 @@ function Ball({ n, size = "lg" }: { n: number; size?: "lg" | "sm" }) {
       <div
         className={cn(
           "ball flex flex-col items-center justify-center rounded-full",
-          big ? "size-24 animate-bob sm:size-28" : "size-9",
+          big ? "size-24 sm:size-28" : "size-9",
         )}
       >
         <span
@@ -375,7 +377,7 @@ function CallPanel({
   isMyTurn: boolean;
   selfId: string;
 }) {
-  const recent = useMemo(() => room.calledNumbers.slice(-7).reverse(), [room.calledNumbers]);
+  const recent = useMemo(() => room.calledNumbers.slice(-5).reverse(), [room.calledNumbers]);
   return (
     <section className="rounded-xl border-2 border-felt-2 bg-felt-3 p-5 shadow-[inset_0_1px_0_rgba(255,255,255,0.06),0_16px_30px_-16px_rgba(0,0,0,0.7)]">
       <div className="flex items-center justify-between gap-4">
@@ -423,12 +425,12 @@ function CallPanel({
           className={cn(
             "mt-4 rounded-lg px-3 py-2 text-center text-sm font-semibold",
             isMyTurn
-              ? "animate-turn border border-brass/60 bg-[rgba(230,198,90,0.16)] text-brass-hi"
+              ? "border border-brass/60 bg-[rgba(230,198,90,0.16)] text-brass-hi"
               : "bg-felt-2 text-cream/70",
           )}
         >
           {isMyTurn ? (
-            "Your turn — pick a square on your ticket, then call it."
+            "Your turn to call."
           ) : room.turnPlayerName ? (
             <>
               Waiting for <span className="font-bold text-cream">{room.turnPlayerName}</span>

@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Check, Copy, Crown, LogOut, Loader2, Wifi, WifiOff } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
@@ -7,6 +7,8 @@ import { cn } from "@/utils";
 
 import { BingoCard } from "./BingoCard";
 import { JoinInline } from "./JoinInline";
+import { SoundToggle } from "./SoundToggle";
+import { sfx } from "./sound";
 import { useBingoRoom } from "./useBingoRoom";
 import {
   BINGO_LETTERS,
@@ -33,6 +35,58 @@ export function BingoRoomView({ code, onLeave }: { code: string; onLeave: () => 
     if (!isMyTurn) setPendingCell(null);
   }, [isMyTurn]);
 
+  // ── Reactive sound effects. Each keeps a "prev" ref and skips the first run
+  // so hydrating into an in-progress room doesn't fire a burst of noise. ──
+  const currentNumber = room?.currentNumber ?? null;
+  const prevCall = useRef<number | null | undefined>(undefined);
+  useEffect(() => {
+    if (prevCall.current === undefined) prevCall.current = currentNumber;
+    else if (currentNumber !== prevCall.current) {
+      prevCall.current = currentNumber;
+      if (currentNumber !== null) sfx.call();
+    }
+  }, [currentNumber]);
+
+  const myDaubs =
+    self && room
+      ? self.card.filter((n) => n !== 0 && room.calledNumbers.includes(n)).length
+      : 0;
+  const prevDaubs = useRef<number | undefined>(undefined);
+  useEffect(() => {
+    if (prevDaubs.current === undefined) prevDaubs.current = myDaubs;
+    else {
+      if (myDaubs > prevDaubs.current) sfx.daub();
+      prevDaubs.current = myDaubs;
+    }
+  }, [myDaubs]);
+
+  const prevTurn = useRef<boolean | undefined>(undefined);
+  useEffect(() => {
+    if (prevTurn.current === undefined) prevTurn.current = isMyTurn;
+    else {
+      if (isMyTurn && !prevTurn.current) sfx.turn();
+      prevTurn.current = isMyTurn;
+    }
+  }, [isMyTurn]);
+
+  const finishedWin = room?.phase === "finished" && !!room?.winnerId;
+  const prevWin = useRef<boolean | undefined>(undefined);
+  useEffect(() => {
+    if (prevWin.current === undefined) prevWin.current = finishedWin;
+    else {
+      if (finishedWin && !prevWin.current) sfx.win();
+      prevWin.current = finishedWin;
+    }
+  }, [finishedWin]);
+
+  useEffect(() => {
+    if (bingo.actionError) sfx.buzz();
+  }, [bingo.actionError]);
+
+  useEffect(() => {
+    if (bingo.claimResult && !bingo.claimResult.startsWith("BINGO")) sfx.buzz();
+  }, [bingo.claimResult]);
+
   if (needsJoin) {
     return <JoinInline code={code} />;
   }
@@ -54,8 +108,14 @@ export function BingoRoomView({ code, onLeave }: { code: string; onLeave: () => 
 
   const callPending = () => {
     if (pendingCell === null) return;
+    sfx.click();
     bingo.call(self.card[pendingCell]);
     setPendingCell(null);
+  };
+
+  const selectCell = (i: number) => {
+    sfx.pick();
+    setPendingCell((prev) => (prev === i ? null : i));
   };
 
   return (
@@ -69,7 +129,10 @@ export function BingoRoomView({ code, onLeave }: { code: string; onLeave: () => 
               isHost={isHost}
               winPattern={room.winPattern}
               playerCount={room.players.length}
-              onStart={bingo.start}
+              onStart={() => {
+                sfx.start();
+                bingo.start();
+              }}
             />
           )}
 
@@ -101,7 +164,7 @@ export function BingoRoomView({ code, onLeave }: { code: string; onLeave: () => 
                   dimmed={someoneWon && !iWon}
                   callable={room.phase === "playing" && isMyTurn}
                   selectedCell={pendingCell}
-                  onSelectCell={(i) => setPendingCell((prev) => (prev === i ? null : i))}
+                  onSelectCell={selectCell}
                 />
 
                 {room.phase === "playing" && isMyTurn && (
@@ -121,7 +184,13 @@ export function BingoRoomView({ code, onLeave }: { code: string; onLeave: () => 
 
                 {room.phase === "playing" && (
                   <div className="mx-auto flex max-w-sm flex-col items-center gap-2">
-                    <BingoButton lit={iHaveWin} onClick={bingo.claim} />
+                    <BingoButton
+                      lit={iHaveWin}
+                      onClick={() => {
+                        sfx.click();
+                        bingo.claim();
+                      }}
+                    />
                     {bingo.claimResult && (
                       <p
                         className={cn(
@@ -169,7 +238,7 @@ function Ball({ n, size = "lg" }: { n: number; size?: "lg" | "sm" }) {
       <div
         className={cn(
           "ball flex flex-col items-center justify-center rounded-full",
-          big ? "size-24 sm:size-28" : "size-9",
+          big ? "size-24 animate-bob sm:size-28" : "size-9",
         )}
       >
         <span
@@ -227,6 +296,7 @@ function RoomHeader({
             {code}
           </span>
         </div>
+        <SoundToggle />
         <Button variant="outline" size="sm" onClick={copyLink}>
           {copied ? <Check className="size-4" /> : <Copy className="size-4" />}
           {copied ? "Copied" : "Invite"}
@@ -337,7 +407,9 @@ function CallPanel({
           </p>
           <div className="mt-2 flex flex-wrap gap-1.5">
             {recent.map((n) => (
-              <Ball key={n} n={n} size="sm" />
+              <span key={n} className="animate-ball-in inline-flex">
+                <Ball n={n} size="sm" />
+              </span>
             ))}
             {recent.length === 0 && (
               <span className="text-sm text-cream/50">No numbers out yet…</span>
@@ -351,7 +423,7 @@ function CallPanel({
           className={cn(
             "mt-4 rounded-lg px-3 py-2 text-center text-sm font-semibold",
             isMyTurn
-              ? "border border-brass/60 bg-[rgba(230,198,90,0.16)] text-brass-hi shadow-[0_0_0_1px_rgba(230,198,90,0.15)_inset]"
+              ? "animate-turn border border-brass/60 bg-[rgba(230,198,90,0.16)] text-brass-hi"
               : "bg-felt-2 text-cream/70",
           )}
         >

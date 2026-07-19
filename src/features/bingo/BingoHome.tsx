@@ -13,6 +13,7 @@ import {
 } from "@/components/ui/card";
 import { cn } from "@/utils";
 
+import { SoundToggle } from "./SoundToggle";
 import { createRoom, joinRoom, saveIdentity } from "./client";
 import type { WinPattern } from "./types";
 
@@ -77,7 +78,10 @@ export function BingoHome() {
 
   return (
     <div className="mx-auto max-w-lg px-4 py-10 sm:py-14">
-      <header className="mb-9 text-center">
+      <div className="flex justify-end">
+        <SoundToggle />
+      </div>
+      <header className="-mt-4 mb-9 text-center">
         <p className="script text-2xl text-brass-hi">Welcome to</p>
         <div className="mt-3 flex justify-center gap-2 sm:gap-2.5">
           {LOGO_BALLS.map((b, i) => (

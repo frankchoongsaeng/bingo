@@ -167,8 +167,13 @@
       0 10px 18px -6px rgba(0, 0, 0, 0.5);
     transition: transform 0.06s ease, box-shadow 0.06s ease;
   }
+  .plaque:hover:not(:disabled) {
+    filter: brightness(1.06);
+    transform: translateY(-1px);
+  }
   .plaque:active:not(:disabled) {
     transform: translateY(4px);
+    filter: none;
     box-shadow:
       0 1px 0 rgba(255, 245, 200, 0.6) inset,
       0 1px 0 var(--brass-2),
@@ -208,6 +213,15 @@
     top: -12px;
     animation: confetti-fall 1.9s linear forwards;
   }
+  .animate-bob {
+    animation: ball-bob 2.6s ease-in-out infinite;
+  }
+  .animate-turn {
+    animation: turn-pulse 1.8s ease-in-out infinite;
+  }
+  .animate-deal {
+    animation: deal-in 0.5s cubic-bezier(0.16, 1, 0.3, 1) both;
+  }
 }
 
 @keyframes ball-in {
@@ -235,10 +249,32 @@
   100% { transform: translateY(320px) rotate(540deg); opacity: 0; }
 }
 
+@keyframes ball-bob {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-4px); }
+}
+
+@keyframes turn-pulse {
+  0%, 100% { box-shadow: 0 0 0 1px rgba(230, 198, 90, 0.15) inset; }
+  50% {
+    box-shadow:
+      0 0 16px -1px rgba(230, 198, 90, 0.4),
+      0 0 0 1px rgba(230, 198, 90, 0.35) inset;
+  }
+}
+
+@keyframes deal-in {
+  0% { transform: translateY(16px) rotate(-1.2deg); opacity: 0; }
+  100% { transform: translateY(0) rotate(0); opacity: 1; }
+}
+
 @media (prefers-reduced-motion: reduce) {
   .animate-ball-in,
   .animate-daub,
-  .animate-stamp {
+  .animate-stamp,
+  .animate-bob,
+  .animate-turn,
+  .animate-deal {
     animation: none;
   }
   .confetti-piece {
@@ -246,5 +282,8 @@
   }
   .plaque {
     transition: none;
+  }
+  .plaque:hover:not(:disabled) {
+    transform: none;
   }
 }

@@ -41,7 +41,7 @@ export function BingoCard({
   return (
     <div
       className={cn(
-        "ticket mx-auto w-full max-w-sm select-none rounded-xl p-3.5 transition-opacity",
+        "ticket animate-deal mx-auto w-full max-w-sm select-none rounded-xl p-3.5 transition-opacity",
         dimmed && "opacity-55",
       )}
     >

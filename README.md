@@ -1,7 +1,9 @@
-# Realtime Bingo
+# Friday Night Bingo
 
-A real-time multiplayer bingo game. Create a room, share the code, and race
-your friends to a bingo — live over the internet.
+A real-time multiplayer bingo game with a retro social-hall look — cream
+tickets on a felt-green table, glossy called balls, and ink-dauber marks.
+Open a session, share the code, and daub your way to a BINGO with friends,
+live over the internet.
 
 - **Classic 75-ball bingo.** Each player gets a 5×5 card (B/I/N/G/O columns with
   a free centre square).

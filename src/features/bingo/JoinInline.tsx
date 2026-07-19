@@ -31,11 +31,14 @@ export function JoinInline({ code }: { code: string }) {
   };
 
   return (
-    <div className="mx-auto flex min-h-[60vh] max-w-sm flex-col justify-center px-4">
-      <div className="rounded-xl border bg-card p-6">
-        <h1 className="text-lg font-semibold">Join room {code}</h1>
-        <p className="mt-1 text-sm text-muted-foreground">Pick a name to take a seat at the table.</p>
-        <form onSubmit={submit} className="mt-4 space-y-3">
+    <div className="mx-auto flex min-h-[70vh] max-w-sm flex-col justify-center px-4">
+      <div className="ticket rounded-xl p-6">
+        <p className="script text-xl text-dauber">Take a seat</p>
+        <h1 className="signage mt-1 text-2xl text-ink">
+          Session <span className="text-dauber-2">{code}</span>
+        </h1>
+        <p className="mt-1 text-sm text-ink-soft">Pick a name and grab a ticket.</p>
+        <form onSubmit={submit} className="mt-5 space-y-4">
           <div className="space-y-1.5">
             <Label htmlFor="join-name">Your name</Label>
             <Input
@@ -47,9 +50,9 @@ export function JoinInline({ code }: { code: string }) {
               autoFocus
             />
           </div>
-          {error && <p className="text-sm text-destructive">{error}</p>}
+          {error && <p className="text-sm font-semibold text-destructive">{error}</p>}
           <Button type="submit" className="w-full" disabled={busy}>
-            {busy ? "Joining…" : "Join game"}
+            {busy ? "Joining…" : "Take a seat"}
           </Button>
         </form>
       </div>

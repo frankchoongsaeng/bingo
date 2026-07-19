@@ -1,53 +1,50 @@
 @import "tailwindcss";
 
-@custom-variant dark (&:is(.dark *));
+/* ─────────────────────────────────────────────────────────────────────────
+ * "Friday Night Bingo" — a mid-century social-hall art direction.
+ * Cream paper tickets pinned to a deep felt-green table, fat hand-painted
+ * signage, brass plaque buttons, and translucent ink-dauber marks.
+ * One committed theme (a game has one look — no OS light/dark toggle).
+ * ───────────────────────────────────────────────────────────────────────── */
 
-/* Theme palette. --radius drives the rounded-corner scale. Light + dark token
- * sets; the dark set applies when the <html> element carries the `dark` class
- * (toggled from index.html based on the OS colour-scheme preference). */
 :root {
-  --radius: 0.75rem;
-  --background: oklch(0.98 0.008 220);
-  --foreground: oklch(0.22 0.05 240);
-  --card: oklch(1 0 0);
-  --card-foreground: oklch(0.22 0.05 240);
-  --popover: oklch(1 0 0);
-  --popover-foreground: oklch(0.22 0.05 240);
-  --primary: oklch(0.55 0.18 225);
-  --primary-foreground: oklch(1 0 0);
-  --secondary: oklch(0.93 0.02 220);
-  --secondary-foreground: oklch(0.22 0.05 240);
-  --muted: oklch(0.95 0.015 220);
-  --muted-foreground: oklch(0.5 0.03 240);
-  --accent: oklch(0.72 0.16 30);
-  --accent-foreground: oklch(0.22 0.05 30);
-  --destructive: oklch(0.577 0.245 27.325);
-  --destructive-foreground: oklch(1 0 0);
-  --border: oklch(0.9 0.015 220);
-  --input: oklch(0.9 0.015 220);
-  --ring: oklch(0.55 0.18 225);
-}
+  /* Core palette */
+  --felt: #163d2b; /* the gaming table */
+  --felt-2: #0f2e20; /* deeper felt — edges, shadows, wells */
+  --felt-3: #1d4d37; /* raised felt */
+  --cream: #f3e7c9; /* ticket / paper stock */
+  --cream-2: #e9dab6; /* paper in shadow, muted panels */
+  --ink: #2a2016; /* printed ink on paper */
+  --ink-soft: #6a5a44; /* faded ink — secondary text on cream */
+  --brass: #c9a227; /* aged gold trim + primary plaques */
+  --brass-2: #a8801c; /* gold in shadow / pressed */
+  --brass-hi: #e6c65a; /* gold highlight */
+  --dauber: #c33a4e; /* ink-dauber marks + live accents */
+  --dauber-2: #9e2c3d; /* dauber in shadow */
+  --paper-line: rgba(193, 72, 58, 0.28); /* faded red grid rule on tickets */
 
-.dark {
-  --background: oklch(0.18 0.02 240);
-  --foreground: oklch(0.985 0 0);
-  --card: oklch(0.23 0.025 240);
-  --card-foreground: oklch(0.985 0 0);
-  --popover: oklch(0.23 0.025 240);
-  --popover-foreground: oklch(0.985 0 0);
-  --primary: oklch(0.68 0.18 225);
-  --primary-foreground: oklch(0.15 0.04 240);
-  --secondary: oklch(0.28 0.02 240);
-  --secondary-foreground: oklch(0.985 0 0);
-  --muted: oklch(0.28 0.02 240);
-  --muted-foreground: oklch(0.72 0.02 240);
-  --accent: oklch(0.7 0.16 30);
-  --accent-foreground: oklch(0.18 0.05 30);
-  --destructive: oklch(0.704 0.191 22.216);
-  --destructive-foreground: oklch(1 0 0);
-  --border: oklch(1 0 0 / 10%);
-  --input: oklch(1 0 0 / 15%);
-  --ring: oklch(0.68 0.18 225);
+  --radius: 0.6rem;
+
+  /* shadcn token bridge — primitives inherit the new palette */
+  --background: var(--felt);
+  --foreground: var(--cream);
+  --card: var(--cream);
+  --card-foreground: var(--ink);
+  --popover: var(--cream);
+  --popover-foreground: var(--ink);
+  --primary: var(--brass);
+  --primary-foreground: #2a2016;
+  --secondary: var(--cream-2);
+  --secondary-foreground: var(--ink);
+  --muted: var(--cream-2);
+  --muted-foreground: var(--ink-soft);
+  --accent: var(--dauber);
+  --accent-foreground: #fff5ec;
+  --destructive: #a3342c;
+  --destructive-foreground: #fff5ec;
+  --border: rgba(42, 32, 22, 0.16);
+  --input: rgba(42, 32, 22, 0.22);
+  --ring: var(--brass);
 }
 
 @theme inline {
@@ -55,6 +52,27 @@
   --radius-md: calc(var(--radius) - 2px);
   --radius-lg: var(--radius);
   --radius-xl: calc(var(--radius) + 4px);
+
+  --font-display: "Alfa Slab One", ui-serif, Georgia, serif;
+  --font-body: "Bitter", Georgia, "Times New Roman", serif;
+  --font-script: "Yellowtail", "Brush Script MT", cursive;
+  --font-ticket: "Courier Prime", ui-monospace, "Courier New", monospace;
+  --font-sans: var(--font-body);
+
+  /* Direct palette utilities: bg-felt, text-ink, border-brass, bg-dauber … */
+  --color-felt: var(--felt);
+  --color-felt-2: var(--felt-2);
+  --color-felt-3: var(--felt-3);
+  --color-cream: var(--cream);
+  --color-cream-2: var(--cream-2);
+  --color-ink: var(--ink);
+  --color-ink-soft: var(--ink-soft);
+  --color-brass: var(--brass);
+  --color-brass-2: var(--brass-2);
+  --color-brass-hi: var(--brass-hi);
+  --color-dauber: var(--dauber);
+  --color-dauber-2: var(--dauber-2);
+
   --color-background: var(--background);
   --color-foreground: var(--foreground);
   --color-card: var(--card);
@@ -77,11 +95,156 @@
 
 @layer base {
   * {
-    @apply border-border outline-ring/50;
+    @apply border-border;
+  }
+
+  html {
+    color-scheme: dark;
   }
 
   body {
     @apply bg-background text-foreground;
-    font-family: "Inter", system-ui, sans-serif;
+    font-family: var(--font-body);
+    /* Felt table: base green + fine woven noise + a soft spotlight vignette. */
+    background-color: var(--felt);
+    background-image:
+      radial-gradient(120% 90% at 50% -10%, rgba(45, 110, 78, 0.5), transparent 60%),
+      radial-gradient(120% 120% at 50% 120%, rgba(8, 26, 18, 0.7), transparent 55%),
+      url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='140' height='140'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.06'/%3E%3C/svg%3E");
+    background-attachment: fixed, fixed, fixed;
+    min-height: 100vh;
+  }
+
+  /* Focus visibility on the felt + on paper alike. */
+  :focus-visible {
+    outline: 2px solid var(--brass-hi);
+    outline-offset: 2px;
+  }
+}
+
+@layer utilities {
+  /* Aged-paper ticket surface: cream stock + faint grain. */
+  .paper {
+    background-color: var(--cream);
+    background-image:
+      url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='p'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.7' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23p)' opacity='0.05'/%3E%3C/svg%3E");
+  }
+
+  /* A ticket pinned to the table: paper + printed border + soft cast shadow. */
+  .ticket {
+    background-color: var(--cream);
+    background-image:
+      url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='p'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.7' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23p)' opacity='0.05'/%3E%3C/svg%3E");
+    border: 2px solid rgba(42, 32, 22, 0.85);
+    box-shadow:
+      0 1px 0 rgba(255, 250, 235, 0.4) inset,
+      0 14px 30px -12px rgba(0, 0, 0, 0.55);
+  }
+
+  /* Text set like painted hall signage. */
+  .signage {
+    font-family: var(--font-display);
+    letter-spacing: 0.01em;
+    line-height: 0.95;
+  }
+  .script {
+    font-family: var(--font-script);
+  }
+  .ticketnum {
+    font-family: var(--font-ticket);
+  }
+
+  /* Brass plaque — the tactile "raised metal" for primary controls. */
+  .plaque {
+    background:
+      linear-gradient(180deg, var(--brass-hi) 0%, var(--brass) 42%, var(--brass-2) 100%);
+    color: #2a2016;
+    border: 1px solid rgba(80, 58, 8, 0.6);
+    box-shadow:
+      0 1px 0 rgba(255, 245, 200, 0.7) inset,
+      0 -2px 0 rgba(90, 66, 10, 0.35) inset,
+      0 5px 0 var(--brass-2),
+      0 10px 18px -6px rgba(0, 0, 0, 0.5);
+    transition: transform 0.06s ease, box-shadow 0.06s ease;
+  }
+  .plaque:active:not(:disabled) {
+    transform: translateY(4px);
+    box-shadow:
+      0 1px 0 rgba(255, 245, 200, 0.6) inset,
+      0 1px 0 var(--brass-2),
+      0 4px 10px -6px rgba(0, 0, 0, 0.5);
+  }
+
+  /* The called ball — glossy cream sphere resting in a brass cup. */
+  .ball {
+    background:
+      radial-gradient(circle at 34% 28%, #fffdf6 0%, #f7ecd2 34%, #e3d0a6 78%, #cdb684 100%);
+    box-shadow:
+      0 3px 0 rgba(0, 0, 0, 0.18) inset,
+      -6px -8px 14px rgba(255, 255, 255, 0.55) inset,
+      0 12px 22px -8px rgba(0, 0, 0, 0.6);
+  }
+
+  /* Ink-dauber blot — uneven, translucent stamp; number shows through. */
+  .daub {
+    background:
+      radial-gradient(circle at 42% 38%, var(--dauber) 0%, var(--dauber) 55%, var(--dauber-2) 78%, rgba(158, 44, 61, 0.85) 100%);
+    border-radius: 49% 51% 52% 48% / 50% 49% 51% 50%;
+    box-shadow: 0 1px 2px rgba(120, 20, 35, 0.4);
+    opacity: 0.8;
+  }
+
+  .animate-ball-in {
+    animation: ball-in 0.5s cubic-bezier(0.16, 1.2, 0.3, 1) both;
+  }
+  .animate-daub {
+    animation: daub-pop 0.28s cubic-bezier(0.18, 1.3, 0.4, 1) both;
+  }
+  .animate-stamp {
+    animation: stamp-slam 0.45s cubic-bezier(0.2, 1.4, 0.35, 1) both;
+  }
+  .confetti-piece {
+    position: absolute;
+    top: -12px;
+    animation: confetti-fall 1.9s linear forwards;
+  }
+}
+
+@keyframes ball-in {
+  0% { transform: translateY(-18px) scale(0.7) rotate(-8deg); opacity: 0; }
+  60% { transform: translateY(0) scale(1.08) rotate(2deg); opacity: 1; }
+  100% { transform: translateY(0) scale(1) rotate(0); }
+}
+
+@keyframes daub-pop {
+  0% { transform: scale(0) rotate(var(--daub-rot, 0deg)); opacity: 0; }
+  55% { transform: scale(1.18) rotate(var(--daub-rot, 0deg)); opacity: 0.95; }
+  100% { transform: scale(1) rotate(var(--daub-rot, 0deg)); opacity: 0.9; }
+}
+
+@keyframes stamp-slam {
+  0% { transform: scale(2.4) rotate(-16deg); opacity: 0; }
+  55% { transform: scale(0.92) rotate(-7deg); opacity: 1; }
+  75% { transform: scale(1.05) rotate(-6deg); }
+  100% { transform: scale(1) rotate(-6deg); opacity: 1; }
+}
+
+@keyframes confetti-fall {
+  0% { transform: translateY(-20px) rotate(0); opacity: 0; }
+  10% { opacity: 1; }
+  100% { transform: translateY(320px) rotate(540deg); opacity: 0; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .animate-ball-in,
+  .animate-daub,
+  .animate-stamp {
+    animation: none;
+  }
+  .confetti-piece {
+    display: none;
+  }
+  .plaque {
+    transition: none;
   }
 }

@@ -16,6 +16,14 @@ import { cn } from "@/utils";
 import { createRoom, joinRoom, saveIdentity } from "./client";
 import type { WinPattern } from "./types";
 
+const LOGO_BALLS = [
+  { letter: "B", color: "#c33a4e" },
+  { letter: "I", color: "#2a2016" },
+  { letter: "N", color: "#1d4d37" },
+  { letter: "G", color: "#a8801c" },
+  { letter: "O", color: "#c33a4e" },
+];
+
 export function BingoHome() {
   const navigate = useNavigate();
   const [tab, setTab] = useState<"create" | "join">("create");
@@ -43,7 +51,7 @@ export function BingoHome() {
       saveIdentity(result.room.id, { playerId: result.you.id, token: result.you.token });
       navigate(`/room/${result.room.id}`);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Could not create room");
+      setError(err instanceof Error ? err.message : "Could not open a session");
       setBusy(false);
     }
   };
@@ -52,7 +60,7 @@ export function BingoHome() {
     e.preventDefault();
     const code = joinCode.trim().toUpperCase();
     if (!code) {
-      setError("Enter a room code");
+      setError("Enter a session code");
       return;
     }
     setBusy(true);
@@ -62,21 +70,40 @@ export function BingoHome() {
       saveIdentity(code, { playerId: result.you.id, token: result.you.token });
       navigate(`/room/${code}`);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Could not join room");
+      setError(err instanceof Error ? err.message : "Could not join the session");
       setBusy(false);
     }
   };
 
   return (
-    <div className="mx-auto max-w-lg px-4 py-10 sm:py-16">
-      <div className="mb-8 text-center">
-        <h1 className="text-3xl font-bold tracking-tight">Chota Bingo</h1>
-        <p className="mt-2 text-muted-foreground">
-          Spin up a room, share the code, and race your friends to a bingo — live, in real time.
+    <div className="mx-auto max-w-lg px-4 py-10 sm:py-14">
+      <header className="mb-9 text-center">
+        <p className="script text-2xl text-brass-hi">Welcome to</p>
+        <div className="mt-3 flex justify-center gap-2 sm:gap-2.5">
+          {LOGO_BALLS.map((b, i) => (
+            <div
+              key={b.letter}
+              className="animate-ball-in shrink-0 rounded-full p-[3px]"
+              style={{ background: b.color, animationDelay: `${i * 0.08}s` }}
+            >
+              <div className="ball flex size-12 items-center justify-center rounded-full sm:size-14">
+                <span
+                  className="signage text-2xl sm:text-3xl"
+                  style={{ color: b.color }}
+                >
+                  {b.letter}
+                </span>
+              </div>
+            </div>
+          ))}
+        </div>
+        <p className="mx-auto mt-5 max-w-sm text-cream/70">
+          Grab a ticket, share the session code, and daub your way to a BINGO with friends —
+          live, in real time.
         </p>
-      </div>
+      </header>
 
-      <div className="mb-6 grid grid-cols-2 gap-1 rounded-lg bg-muted p-1">
+      <div className="mx-auto mb-6 grid max-w-xs grid-cols-2 gap-1 rounded-lg border border-felt-2 bg-felt-2 p-1">
         {(["create", "join"] as const).map((t) => (
           <button
             key={t}
@@ -86,11 +113,13 @@ export function BingoHome() {
               setError(null);
             }}
             className={cn(
-              "rounded-md py-2 text-sm font-medium capitalize transition-colors",
-              tab === t ? "bg-background shadow-sm" : "text-muted-foreground hover:text-foreground",
+              "rounded-md py-2 text-sm font-bold uppercase tracking-wide transition-colors",
+              tab === t
+                ? "bg-brass text-ink shadow-[0_1px_0_rgba(255,245,200,0.6)_inset]"
+                : "text-cream/60 hover:text-cream",
             )}
           >
-            {t === "create" ? "Create room" : "Join room"}
+            {t === "create" ? "Host" : "Join"}
           </button>
         ))}
       </div>
@@ -98,8 +127,8 @@ export function BingoHome() {
       {tab === "create" ? (
         <Card>
           <CardHeader>
-            <CardTitle>Host a new game</CardTitle>
-            <CardDescription>You'll get a room code to share with players.</CardDescription>
+            <CardTitle className="signage text-2xl">Open a session</CardTitle>
+            <CardDescription>You'll get a code to share with the table.</CardDescription>
           </CardHeader>
           <CardContent>
             <form onSubmit={doCreate} className="space-y-5">
@@ -116,7 +145,7 @@ export function BingoHome() {
               </div>
 
               <div className="space-y-1.5">
-                <Label>Win pattern</Label>
+                <Label>How to win</Label>
                 <div className="grid grid-cols-3 gap-2">
                   <OptionButton
                     active={winPattern === "bingo"}
@@ -132,21 +161,21 @@ export function BingoHome() {
                   />
                   <OptionButton
                     active={winPattern === "blackout"}
-                    title="Blackout"
-                    subtitle="Fill the card"
+                    title="Full house"
+                    subtitle="Daub the whole card"
                     onClick={() => setWinPattern("blackout")}
                   />
                 </div>
-                <p className="text-xs text-muted-foreground">
-                  Players take turns picking the number to call — every call plays for
-                  everyone.
+                <p className="text-xs text-ink-soft">
+                  Players take turns picking a square to call — every call plays for the whole
+                  table.
                 </p>
               </div>
 
-              {error && <p className="text-sm text-destructive">{error}</p>}
+              {error && <p className="text-sm font-semibold text-destructive">{error}</p>}
 
               <Button type="submit" className="w-full" disabled={busy}>
-                {busy ? "Creating…" : "Create room"}
+                {busy ? "Opening…" : "Open the session"}
               </Button>
             </form>
           </CardContent>
@@ -154,13 +183,13 @@ export function BingoHome() {
       ) : (
         <Card>
           <CardHeader>
-            <CardTitle>Join a game</CardTitle>
-            <CardDescription>Enter the room code a host shared with you.</CardDescription>
+            <CardTitle className="signage text-2xl">Join a session</CardTitle>
+            <CardDescription>Enter the code the caller shared with you.</CardDescription>
           </CardHeader>
           <CardContent>
             <form onSubmit={doJoin} className="space-y-5">
               <div className="space-y-1.5">
-                <Label htmlFor="join-code">Room code</Label>
+                <Label htmlFor="join-code">Session code</Label>
                 <Input
                   id="join-code"
                   value={joinCode}
@@ -168,7 +197,7 @@ export function BingoHome() {
                   placeholder="ABCDE"
                   maxLength={5}
                   autoCapitalize="characters"
-                  className="font-mono text-lg tracking-widest"
+                  className="ticketnum text-2xl font-bold tracking-[0.4em]"
                   autoFocus
                 />
               </div>
@@ -183,10 +212,10 @@ export function BingoHome() {
                 />
               </div>
 
-              {error && <p className="text-sm text-destructive">{error}</p>}
+              {error && <p className="text-sm font-semibold text-destructive">{error}</p>}
 
               <Button type="submit" className="w-full" disabled={busy}>
-                {busy ? "Joining…" : "Join room"}
+                {busy ? "Joining…" : "Take a seat"}
               </Button>
             </form>
           </CardContent>
@@ -212,12 +241,14 @@ function OptionButton({
       type="button"
       onClick={onClick}
       className={cn(
-        "rounded-lg border p-3 text-left transition-colors",
-        active ? "border-primary bg-primary/5" : "hover:bg-accent",
+        "rounded-lg border-2 p-3 text-left transition-colors",
+        active
+          ? "border-brass bg-[rgba(201,162,39,0.16)]"
+          : "border-[rgba(42,32,22,0.22)] hover:bg-cream-2",
       )}
     >
-      <p className="text-sm font-medium">{title}</p>
-      <p className="text-xs text-muted-foreground">{subtitle}</p>
+      <p className="font-bold text-ink">{title}</p>
+      <p className="text-xs text-ink-soft">{subtitle}</p>
     </button>
   );
 }

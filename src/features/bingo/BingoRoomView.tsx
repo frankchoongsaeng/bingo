@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Check, Copy, Crown, LogOut, Loader2, Wifi, WifiOff } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
@@ -20,6 +20,14 @@ export function BingoRoomView({ code, onLeave }: { code: string; onLeave: () => 
   const bingo = useBingoRoom(code);
   const { room, self, status, needsJoin } = bingo;
 
+  // The caller's tentative pick — a cell index on their own card, not yet
+  // called. Committed via the Call button; cleared whenever the turn leaves.
+  const [pendingCell, setPendingCell] = useState<number | null>(null);
+  const isMyTurn = room?.phase === "playing" && room.turnPlayerId === self?.id;
+  useEffect(() => {
+    if (!isMyTurn) setPendingCell(null);
+  }, [isMyTurn]);
+
   if (needsJoin) {
     return <JoinInline code={code} />;
   }
@@ -38,7 +46,12 @@ export function BingoRoomView({ code, onLeave }: { code: string; onLeave: () => 
   const someoneWon = room.phase === "finished" && !!room.winnerId;
   const iWon = room.winnerId === self.id;
   const iHaveWin = room.phase === "playing" && hasCompletableWin(self.card, calledSet, room.winPattern);
-  const isMyTurn = room.phase === "playing" && room.turnPlayerId === self.id;
+
+  const callPending = () => {
+    if (pendingCell === null) return;
+    bingo.call(self.card[pendingCell]);
+    setPendingCell(null);
+  };
 
   return (
     <div className="mx-auto w-full max-w-5xl px-4 py-6 sm:py-10">
@@ -82,8 +95,24 @@ export function BingoRoomView({ code, onLeave }: { code: string; onLeave: () => 
                   winningLine={iWon ? room.winningLine : null}
                   dimmed={someoneWon && !iWon}
                   callable={room.phase === "playing" && isMyTurn}
-                  onCall={bingo.call}
+                  selectedCell={pendingCell}
+                  onSelectCell={(i) => setPendingCell((prev) => (prev === i ? null : i))}
                 />
+
+                {room.phase === "playing" && isMyTurn && (
+                  <div className="mx-auto max-w-sm">
+                    <Button
+                      size="lg"
+                      className="w-full text-base"
+                      disabled={pendingCell === null}
+                      onClick={callPending}
+                    >
+                      {pendingCell === null
+                        ? "Pick a square to call"
+                        : `Call ${self.card[pendingCell]}`}
+                    </Button>
+                  </div>
+                )}
 
                 {room.phase === "playing" && (
                   <div className="mx-auto flex max-w-sm flex-col items-center gap-2">
@@ -209,8 +238,8 @@ function LobbyPanel({
     <div className="rounded-xl border bg-card p-6 text-center">
       <h2 className="text-lg font-semibold">Waiting in the lobby</h2>
       <p className="mt-1 text-sm text-muted-foreground">
-        Share the room code so friends can join. Players take turns tapping a square on
-        their own card to call it — each call plays for everyone. Win by{" "}
+        Share the room code so friends can join. Players take turns picking a square on
+        their own card and calling it — each call plays for everyone. Win by{" "}
         {winPatternBlurb(winPattern)}.
       </p>
       <div className="mt-6">
@@ -266,7 +295,7 @@ function CallPanel({
           )}
         >
           {isMyTurn ? (
-            "Your turn — tap a square on your card to call it for everyone."
+            "Your turn — pick a square on your card, then hit Call."
           ) : room.turnPlayerName ? (
             <>
               Waiting for <span className="font-semibold">{room.turnPlayerName}</span>

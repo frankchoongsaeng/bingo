@@ -9,18 +9,31 @@ interface BingoCardProps {
   dimmed?: boolean;
   /**
    * When true, this player is the caller: uncalled (non-free) cells become
-   * tappable and clicking one calls that number for everyone via `onCall`.
+   * tappable so they can pick one to call. Picking is tentative — nothing is
+   * committed until the caller confirms with the Call button.
    */
   callable?: boolean;
-  onCall?: (n: number) => void;
+  /** Index of the cell the caller has tentatively picked (not yet called). */
+  selectedCell?: number | null;
+  /** Tap handler for an uncalled cell while callable — toggles the pending pick. */
+  onSelectCell?: (index: number) => void;
 }
 
 /**
  * A player's 5x5 bingo card. Called numbers auto-daub and the winning line, if
- * any, is highlighted. On the player's turn (`callable`), uncalled cells turn
- * into buttons that call their number.
+ * any, is highlighted. On the player's turn (`callable`), uncalled cells become
+ * buttons; tapping one marks it as the pending pick (a stable, movable
+ * selection) which the caller then confirms elsewhere.
  */
-export function BingoCard({ card, calledSet, winningLine, dimmed, callable, onCall }: BingoCardProps) {
+export function BingoCard({
+  card,
+  calledSet,
+  winningLine,
+  dimmed,
+  callable,
+  selectedCell,
+  onSelectCell,
+}: BingoCardProps) {
   const winners = new Set(winningLine ?? []);
   return (
     <div
@@ -45,12 +58,14 @@ export function BingoCard({ card, calledSet, winningLine, dimmed, callable, onCa
           const daubed = free || calledSet.has(n);
           const inWin = winners.has(i);
           const tappable = callable && !daubed;
+          const isSelected = tappable && selectedCell === i;
           const className = cn(
             "flex aspect-square items-center justify-center rounded-md border text-lg font-semibold tabular-nums transition-colors",
-            !daubed && "bg-background text-foreground",
+            !daubed && !isSelected && "bg-background text-foreground",
             daubed && !inWin && "border-primary/40 bg-primary/15 text-primary",
             inWin && "border-primary bg-primary text-primary-foreground",
-            tappable && "cursor-pointer hover:border-primary hover:bg-primary/10 hover:text-primary",
+            tappable && !isSelected && "cursor-pointer hover:border-primary hover:bg-primary/10 hover:text-primary",
+            isSelected && "cursor-pointer border-primary bg-primary/25 text-primary ring-2 ring-primary",
           );
           const content = free ? (
             <span className="text-xs font-bold uppercase tracking-wide">Free</span>
@@ -67,8 +82,9 @@ export function BingoCard({ card, calledSet, winningLine, dimmed, callable, onCa
               <button
                 key={i}
                 type="button"
-                onClick={() => onCall?.(n)}
-                aria-label={`Call ${n}`}
+                onClick={() => onSelectCell?.(i)}
+                aria-pressed={isSelected}
+                aria-label={`${isSelected ? "Selected" : "Pick"} ${n}`}
                 className={className}
               >
                 {content}

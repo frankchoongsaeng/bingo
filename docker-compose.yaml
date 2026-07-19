@@ -1,0 +1,22 @@
+# Deploy Friday Night Bingo as a single running service.
+#
+# Use this with Coolify's "Docker Compose" build pack (or plain
+# `docker compose up`). A Compose deployment always RUNS the container, so the
+# app is served by the Node server — not by a static file server. That's what
+# makes the `/api/bingo` endpoints work: a static host answers GETs but rejects
+# the API's POSTs (e.g. creating a room) with `405 Method Not Allowed`.
+#
+# The server listens on port 3000 and serves both the built SPA and the API.
+# In Coolify, attach your domain to this service on port 3000.
+
+services:
+  bingo:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    environment:
+      NODE_ENV: production
+      PORT: 3000
+    expose:
+      - "3000"

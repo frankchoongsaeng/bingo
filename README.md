@@ -65,11 +65,28 @@ docker build -t friday-night-bingo .
 docker run -p 3000:3000 friday-night-bingo   # http://localhost:3000
 ```
 
-On **Coolify**, set the application's **Build Pack** to **Dockerfile** (the
-default Nixpacks pack detects a Vite project and serves `dist/` statically,
-which is what produces the 405 on room creation), and set the exposed port to
-**`3000`**. Any host that runs the container — or simply runs `npm run build &&
-npm start` behind a reverse proxy — works the same way.
+Any host that runs the container — or simply runs `npm run build && npm start`
+behind a reverse proxy — works the same way.
+
+#### Coolify
+
+The safest option is the **Docker Compose** build pack pointed at the included
+`docker-compose.yaml`, then attach your domain to the `bingo` service on port
+**`3000`**. A Compose deployment always *runs* the container, so it can't fall
+back to static file serving.
+
+If you use the **Dockerfile** build pack instead, make sure the application is
+**not** marked as a static site:
+
+- Turn **off** any "Static Site" option. Coolify serves static sites with
+  Caddy's file server, which answers `GET` (so the page loads) but rejects the
+  API's `POST` requests with **`405 Method Not Allowed`** — the classic "the app
+  loads but I can't create a room" symptom. If a `POST` to
+  `/api/bingo/rooms` comes back with `Server: Caddy` and `Allow: GET, HEAD`,
+  the site is being served statically and the Node server isn't running.
+- Set **Ports Exposes** to **`3000`**.
+- Confirm the deployment actually succeeded (a failed build leaves the previous
+  static deployment live) and that your domain is attached to *this* resource.
 
 ## How it works
 
